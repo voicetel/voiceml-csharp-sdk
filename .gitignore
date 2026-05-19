@@ -1,0 +1,18 @@
+# Build
+bin/
+obj/
+out/
+*.user
+*.suo
+
+# Test coverage
+*.coverage
+TestResults/
+
+# Tooling
+.vs/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

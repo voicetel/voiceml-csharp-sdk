@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- xmldoc warnings on internal helpers are noise; surface only public missing-doc warnings -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <PackageId>VoiceML</PackageId>
+    <Version>0.4.0</Version>
+    <AssemblyVersion>0.4.0.0</AssemblyVersion>
+    <FileVersion>0.4.0.0</FileVersion>
+    <Authors>VoiceTel</Authors>
+    <Company>VoiceTel</Company>
+    <Product>VoiceML</Product>
+    <Description>Official .NET SDK for VoiceML — VoiceTel's outbound voice + AMD service with a Twilio-shaped REST surface.</Description>
+    <PackageProjectUrl>https://voiceml.voicetel.com</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/voicetel/voiceml-csharp-sdk</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>voiceml;voicetel;voice;telephony;twilio;amd</PackageTags>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Copyright>Copyright (c) VoiceTel</Copyright>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+</Project>
