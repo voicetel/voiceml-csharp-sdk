@@ -1,6 +1,6 @@
 # VoiceML — .NET SDK
 
-Official .NET SDK for [VoiceML](https://voiceml.voicetel.com), VoiceTel's outbound voice + AMD
+Official .NET SDK for [VoiceML](https://voicetel.com/docs/api/v0.6/voiceml/), VoiceTel's outbound voice + AMD
 service with a Twilio-shaped REST surface.
 
 - **Target framework:** `net8.0`
