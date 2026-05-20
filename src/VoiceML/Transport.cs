@@ -73,7 +73,7 @@ public sealed class Transport : IDisposable
 
         // Pre-compute the Authorization header. Bytes used to be re-encoded per request;
         // since AccountSid + ApiKey are immutable here, do it once.
-        var raw = $"{options.AccountSid}:{options.ApiKey}";
+        var raw = $"{options.AccountSid}:{options.ResolvedCredential}";
         _basicAuthHeader = "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes(raw));
     }
 
@@ -347,6 +347,7 @@ public sealed class Transport : IDisposable
 
         object? parsedBody = null;
         object? code = null;
+        string? moreInfo = null;
         string message = $"HTTP {statusCode}";
 
         if (!string.IsNullOrEmpty(body))
@@ -375,6 +376,14 @@ public sealed class Transport : IDisposable
                             message = s;
                         }
                     }
+                    if (doc.RootElement.TryGetProperty("more_info", out var miEl) && miEl.ValueKind == JsonValueKind.String)
+                    {
+                        var s = miEl.GetString();
+                        if (!string.IsNullOrEmpty(s))
+                        {
+                            moreInfo = s;
+                        }
+                    }
                 }
             }
             catch (JsonException)
@@ -398,16 +407,16 @@ public sealed class Transport : IDisposable
 
         throw statusCode switch
         {
-            400 => new BadRequestException(message, statusCode, code, parsedBody),
-            401 => new AuthenticationException(message, statusCode, code, parsedBody),
-            403 => new PermissionDeniedException(message, statusCode, code, parsedBody),
-            404 => new NotFoundException(message, statusCode, code, parsedBody),
-            409 => new ConflictException(message, statusCode, code, parsedBody),
-            410 => new GoneException(message, statusCode, code, parsedBody),
-            429 => new RateLimitException(message, statusCode, code, parsedBody, retryAfter),
-            501 => new NotImplementedAPIException(message, statusCode, code, parsedBody),
-            >= 500 and < 600 => new ServerException(message, statusCode, code, parsedBody),
-            _ => new ApiException(message, statusCode, code, parsedBody),
+            400 => new BadRequestException(message, statusCode, code, parsedBody, moreInfo),
+            401 => new AuthenticationException(message, statusCode, code, parsedBody, moreInfo),
+            403 => new PermissionDeniedException(message, statusCode, code, parsedBody, moreInfo),
+            404 => new NotFoundException(message, statusCode, code, parsedBody, moreInfo),
+            409 => new ConflictException(message, statusCode, code, parsedBody, moreInfo),
+            410 => new GoneException(message, statusCode, code, parsedBody, moreInfo),
+            429 => new RateLimitException(message, statusCode, code, parsedBody, retryAfter, moreInfo),
+            501 => new NotImplementedAPIException(message, statusCode, code, parsedBody, moreInfo),
+            >= 500 and < 600 => new ServerException(message, statusCode, code, parsedBody, moreInfo),
+            _ => new ApiException(message, statusCode, code, parsedBody, moreInfo),
         };
     }
 

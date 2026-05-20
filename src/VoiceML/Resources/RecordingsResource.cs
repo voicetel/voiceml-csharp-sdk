@@ -51,7 +51,7 @@ public sealed class RecordingsResource : ResourceBase
     public async Task<RecordingAudio> GetAudioAsync(string recordingSid, CancellationToken ct = default)
     {
         var (status, bytes, responseHeaders, contentHeaders) = await Transport.FetchBytesAsync(
-            Path("Recordings", recordingSid) + ".wav", ct).ConfigureAwait(false);
+            PathNoSuffix("Recordings", recordingSid) + ".wav", ct).ConfigureAwait(false);
         var contentType = "application/octet-stream";
         if (contentHeaders.ContentType is { } ct2)
         {

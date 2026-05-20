@@ -5,6 +5,6 @@ namespace VoiceML.Exceptions;
 public sealed class ConflictException : ApiException
 {
     /// <summary>Construct with structured fields.</summary>
-    public ConflictException(string message, int statusCode, object? code = null, object? body = null)
-        : base(message, statusCode, code, body) { }
+    public ConflictException(string message, int statusCode, object? code = null, object? body = null, string? moreInfo = null)
+        : base(message, statusCode, code, body, moreInfo) { }
 }

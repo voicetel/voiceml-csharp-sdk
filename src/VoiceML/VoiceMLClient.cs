@@ -35,6 +35,9 @@ public sealed class VoiceMLClient : IDisposable
     /// <summary>Account-scoped recording operations.</summary>
     public RecordingsResource Recordings { get; }
 
+    /// <summary>Tenant-self-serve DID management.</summary>
+    public IncomingPhoneNumbersResource IncomingPhoneNumbers { get; }
+
     /// <summary>Diagnostic endpoints: <c>/health</c> and <c>/openapi.json</c>.</summary>
     public DiagnosticsResource Diagnostics { get; }
 
@@ -55,6 +58,7 @@ public sealed class VoiceMLClient : IDisposable
         Queues = new QueuesResource(_transport);
         Applications = new ApplicationsResource(_transport);
         Recordings = new RecordingsResource(_transport);
+        IncomingPhoneNumbers = new IncomingPhoneNumbersResource(_transport);
         Diagnostics = new DiagnosticsResource(_transport);
     }
 

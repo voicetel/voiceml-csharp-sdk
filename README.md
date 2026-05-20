@@ -13,7 +13,7 @@ service with a Twilio-shaped REST surface.
 ## Install
 
 ```sh
-dotnet add package VoiceML --version 0.4.0
+dotnet add package VoiceML --version 0.5.0
 ```
 
 ## Quick start
@@ -61,6 +61,8 @@ foreach (var c in page.Calls)
   dequeue by call).
 - `client.Applications` — CRUD for persistent TwiML+callback bundles.
 - `client.Recordings` — account-scoped list, fetch metadata, fetch WAV audio, delete.
+- `client.IncomingPhoneNumbers` — tenant-self-serve DID management: list (with `PhoneNumber`
+  exact-match lookup), create (claim/rebind), fetch, update voice routing, release.
 - `client.Diagnostics` — `/health` and `/openapi.json`.
 
 ## Errors
@@ -80,8 +82,8 @@ responses; specific subclasses cover the common status families:
 | 501    | `NotImplementedAPIException`    |
 | 5xx    | `ServerException`               |
 
-Each carries `StatusCode`, `Code` (numeric Twilio code, when present), and `Body` (parsed JSON
-or raw string).
+Each carries `StatusCode`, `Code` (numeric Twilio code, when present), `MoreInfo`
+(documentation URL from the error body, when present), and `Body` (parsed JSON or raw string).
 
 ## Configuration
 
@@ -91,7 +93,7 @@ or raw string).
 new ClientOptions
 {
     AccountSid = "AC...",
-    ApiKey     = "...",
+    ApiKey     = "...",                              // or AuthToken — Twilio-shape alias; set only one
     BaseUrl    = "https://voiceml.voicetel.com",   // default
     Timeout    = TimeSpan.FromSeconds(30),          // default
     MaxRetries = 2,                                  // default; 0 disables retries

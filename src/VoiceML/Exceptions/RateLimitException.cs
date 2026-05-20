@@ -13,8 +13,9 @@ public sealed class RateLimitException : ApiException
         int statusCode,
         object? code = null,
         object? body = null,
-        double? retryAfterSeconds = null)
-        : base(message, statusCode, code, body)
+        double? retryAfterSeconds = null,
+        string? moreInfo = null)
+        : base(message, statusCode, code, body, moreInfo)
     {
         RetryAfterSeconds = retryAfterSeconds;
     }

@@ -67,7 +67,7 @@ public class SmokeTests
             Assert.Equal(HttpMethod.Post, req.Method);
             Assert.NotNull(req.RequestUri);
             Assert.Equal(
-                $"https://voiceml.voicetel.com/2010-04-01/Accounts/{Sid}/Calls",
+                $"https://voiceml.voicetel.com/2010-04-01/Accounts/{Sid}/Calls.json",
                 req.RequestUri!.ToString());
 
             // Authorization: Basic base64(AccountSid:ApiKey)
@@ -234,6 +234,251 @@ public class SmokeTests
         var call = await client.Calls.GetAsync(CallSid);
         Assert.Equal("CA1", call.Sid);
         Assert.Equal(2, calls);
+    }
+
+    // -----------------------------------------------------------------------
+    // .json URL suffix (CC-1): all REST paths get .json on the final segment
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public async Task RestPaths_HaveJsonSuffix()
+    {
+        // GET /Calls.json
+        var handler = new MockHandler(req =>
+        {
+            Assert.EndsWith("/Calls.json", req.RequestUri!.AbsolutePath);
+            return Reply(HttpStatusCode.OK, """{"calls":[],"page":0,"page_size":50}""");
+        });
+        using var client = NewClient(handler);
+        await client.Calls.ListAsync();
+    }
+
+    [Fact]
+    public async Task RestPath_GetCallBySid_HasJsonSuffix()
+    {
+        var handler = new MockHandler(req =>
+        {
+            Assert.EndsWith($"/Calls/{CallSid}.json", req.RequestUri!.AbsolutePath);
+            return Reply(HttpStatusCode.OK,
+                $$"""{"sid":"{{CallSid}}","account_sid":"{{Sid}}","status":"completed","direction":"outbound-api","api_version":"2010-04-01","uri":"/x","date_created":"2025","date_updated":"2025"}""");
+        });
+        using var client = NewClient(handler);
+        await client.Calls.GetAsync(CallSid);
+    }
+
+    [Fact]
+    public async Task RecordingAudio_KeepsWavSuffix_NoJson()
+    {
+        // .wav must NOT be turned into .wav.json
+        var sid = "RE" + "ffffffffffffffffffffffffffffffff";
+        var handler = new MockHandler(req =>
+        {
+            Assert.EndsWith($"/Recordings/{sid}.wav", req.RequestUri!.AbsolutePath);
+            var resp = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(new byte[] { 0x52, 0x49, 0x46, 0x46 }),
+            };
+            resp.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("audio/wav");
+            return resp;
+        });
+        using var client = NewClient(handler);
+        var audio = await client.Recordings.GetAudioAsync(sid);
+        Assert.Equal(4, audio.Content.Length);
+    }
+
+    // -----------------------------------------------------------------------
+    // AuthToken alias (CC-2): accept either ApiKey or AuthToken, not both
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public async Task AuthToken_AloneIsAccepted_UsedAsBasicPassword()
+    {
+        string? observedAuth = null;
+        var handler = new MockHandler(req =>
+        {
+            observedAuth = req.Headers.Authorization?.Parameter;
+            return Reply(HttpStatusCode.OK, """{"ok":true,"warnings":[],"failures":[]}""");
+        });
+        var http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
+        using var client = new VoiceMLClient(new ClientOptions
+        {
+            AccountSid = Sid,
+            AuthToken = "tok-from-authtoken",
+            HttpClient = http,
+        });
+        await client.Diagnostics.HealthAsync();
+
+        var expected = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{Sid}:tok-from-authtoken"));
+        Assert.Equal(expected, observedAuth);
+    }
+
+    [Fact]
+    public async Task ApiKey_AloneIsAccepted_UsedAsBasicPassword()
+    {
+        string? observedAuth = null;
+        var handler = new MockHandler(req =>
+        {
+            observedAuth = req.Headers.Authorization?.Parameter;
+            return Reply(HttpStatusCode.OK, """{"ok":true,"warnings":[],"failures":[]}""");
+        });
+        var http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
+        using var client = new VoiceMLClient(new ClientOptions
+        {
+            AccountSid = Sid,
+            ApiKey = "tok-from-apikey",
+            HttpClient = http,
+        });
+        await client.Diagnostics.HealthAsync();
+
+        var expected = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{Sid}:tok-from-apikey"));
+        Assert.Equal(expected, observedAuth);
+    }
+
+    [Fact]
+    public void ApiKey_AndAuthToken_BothSet_Throws()
+    {
+        var opts = new ClientOptions { AccountSid = Sid, ApiKey = "k", AuthToken = "t" };
+        Assert.Throws<ArgumentException>(() => new VoiceMLClient(opts));
+    }
+
+    [Fact]
+    public void Neither_ApiKey_Nor_AuthToken_Throws()
+    {
+        var opts = new ClientOptions { AccountSid = Sid };
+        Assert.Throws<ConfigurationException>(() => new VoiceMLClient(opts));
+    }
+
+    // -----------------------------------------------------------------------
+    // MoreInfo on ApiException (CC-6)
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public async Task ApiException_MoreInfo_PopulatedFromErrorBody()
+    {
+        var handler = new MockHandler(_ => Reply(HttpStatusCode.BadRequest,
+            """{"code":21211,"message":"Invalid 'To' Phone Number","more_info":"https://www.twilio.com/docs/errors/21211","status":400}"""));
+        using var client = NewClient(handler);
+        var ex = await Assert.ThrowsAsync<BadRequestException>(() => client.Calls.GetAsync(CallSid));
+        Assert.Equal("https://www.twilio.com/docs/errors/21211", ex.MoreInfo);
+        Assert.Equal(21211, ex.Code);
+    }
+
+    [Fact]
+    public async Task ApiException_MoreInfo_NullWhenAbsent()
+    {
+        var handler = new MockHandler(_ => Reply(HttpStatusCode.NotFound,
+            """{"code":20404,"message":"Not Found"}"""));
+        using var client = NewClient(handler);
+        var ex = await Assert.ThrowsAsync<NotFoundException>(() => client.Calls.GetAsync(CallSid));
+        Assert.Null(ex.MoreInfo);
+    }
+
+    // -----------------------------------------------------------------------
+    // IncomingPhoneNumbers (v0.5.0 resource)
+    // -----------------------------------------------------------------------
+
+    private const string PhoneSid = "PN" + "0123456789abcdef0123456789abcdef";
+
+    [Fact]
+    public async Task IncomingPhoneNumbers_List_PathAndShape()
+    {
+        var handler = new MockHandler(req =>
+        {
+            Assert.Equal(HttpMethod.Get, req.Method);
+            Assert.EndsWith($"/Accounts/{Sid}/IncomingPhoneNumbers.json", req.RequestUri!.AbsolutePath);
+            // PhoneNumber filter passed through
+            Assert.Contains("PhoneNumber=", req.RequestUri.Query);
+            var json = "{\"incoming_phone_numbers\":[" +
+                "{\"sid\":\"" + PhoneSid + "\",\"account_sid\":\"" + Sid + "\",\"phone_number\":\"+18005551234\",\"api_version\":\"2010-04-01\",\"uri\":\"/x\",\"capabilities\":{\"voice\":true,\"sms\":false,\"mms\":false,\"fax\":false}}" +
+                "],\"page\":0,\"page_size\":50,\"total\":1,\"first_page_uri\":\"/x\",\"uri\":\"/x\",\"next_page_uri\":null,\"previous_page_uri\":null}";
+            return Reply(HttpStatusCode.OK, json);
+        });
+        using var client = NewClient(handler);
+        var list = await client.IncomingPhoneNumbers.ListAsync(
+            new ListIncomingPhoneNumbersOptions { PhoneNumber = "+18005551234" });
+
+        Assert.Single(list.IncomingPhoneNumbers);
+        var pn = list.IncomingPhoneNumbers[0];
+        Assert.StartsWith("PN", pn.Sid);
+        Assert.Equal(34, pn.Sid.Length);
+        Assert.Equal("+18005551234", pn.PhoneNumber);
+        Assert.NotNull(pn.Capabilities);
+        Assert.True(pn.Capabilities!.Voice);
+        Assert.False(pn.Capabilities.Sms);
+    }
+
+    [Fact]
+    public async Task IncomingPhoneNumbers_Create_FormBody_AndPath()
+    {
+        var handler = new MockHandler(req =>
+        {
+            Assert.Equal(HttpMethod.Post, req.Method);
+            Assert.EndsWith($"/Accounts/{Sid}/IncomingPhoneNumbers.json", req.RequestUri!.AbsolutePath);
+            var body = req.Content!.ReadAsStringAsync().Result;
+            var form = ParseForm(body);
+            Assert.Equal("+18005550000", form["PhoneNumber"]);
+            Assert.Equal("https://example.com/voice", form["VoiceUrl"]);
+            Assert.Equal("POST", form["VoiceMethod"]);
+            var json = "{\"sid\":\"" + PhoneSid + "\",\"account_sid\":\"" + Sid + "\",\"phone_number\":\"+18005550000\",\"api_version\":\"2010-04-01\",\"uri\":\"/x\",\"capabilities\":{\"voice\":true,\"sms\":false,\"mms\":false,\"fax\":false}}";
+            return Reply(HttpStatusCode.Created, json);
+        });
+        using var client = NewClient(handler);
+        var pn = await client.IncomingPhoneNumbers.CreateAsync(new CreateIncomingPhoneNumberOptions
+        {
+            PhoneNumber = "+18005550000",
+            VoiceUrl = "https://example.com/voice",
+            VoiceMethod = "POST",
+        });
+        Assert.Equal(PhoneSid, pn.Sid);
+        Assert.StartsWith("PN", pn.Sid);
+    }
+
+    [Fact]
+    public async Task IncomingPhoneNumbers_Get_PathHasSidAndJson()
+    {
+        var handler = new MockHandler(req =>
+        {
+            Assert.Equal(HttpMethod.Get, req.Method);
+            Assert.EndsWith($"/IncomingPhoneNumbers/{PhoneSid}.json", req.RequestUri!.AbsolutePath);
+            var json = "{\"sid\":\"" + PhoneSid + "\",\"account_sid\":\"" + Sid + "\",\"phone_number\":\"+18005551234\",\"api_version\":\"2010-04-01\",\"uri\":\"/x\",\"capabilities\":{\"voice\":true,\"sms\":false,\"mms\":false,\"fax\":false}}";
+            return Reply(HttpStatusCode.OK, json);
+        });
+        using var client = NewClient(handler);
+        var pn = await client.IncomingPhoneNumbers.GetAsync(PhoneSid);
+        Assert.Equal(PhoneSid, pn.Sid);
+    }
+
+    [Fact]
+    public async Task IncomingPhoneNumbers_Update_PostsFormToSidJson()
+    {
+        var handler = new MockHandler(req =>
+        {
+            Assert.Equal(HttpMethod.Post, req.Method);
+            Assert.EndsWith($"/IncomingPhoneNumbers/{PhoneSid}.json", req.RequestUri!.AbsolutePath);
+            var form = ParseForm(req.Content!.ReadAsStringAsync().Result);
+            Assert.Equal("https://example.com/new-voice", form["VoiceUrl"]);
+            var json = "{\"sid\":\"" + PhoneSid + "\",\"account_sid\":\"" + Sid + "\",\"phone_number\":\"+18005551234\",\"api_version\":\"2010-04-01\",\"uri\":\"/x\",\"voice_url\":\"https://example.com/new-voice\",\"capabilities\":{\"voice\":true,\"sms\":false,\"mms\":false,\"fax\":false}}";
+            return Reply(HttpStatusCode.OK, json);
+        });
+        using var client = NewClient(handler);
+        var pn = await client.IncomingPhoneNumbers.UpdateAsync(PhoneSid, new UpdateIncomingPhoneNumberOptions
+        {
+            VoiceUrl = "https://example.com/new-voice",
+        });
+        Assert.Equal("https://example.com/new-voice", pn.VoiceUrl);
+    }
+
+    [Fact]
+    public async Task IncomingPhoneNumbers_Delete_NoContent()
+    {
+        var handler = new MockHandler(req =>
+        {
+            Assert.Equal(HttpMethod.Delete, req.Method);
+            Assert.EndsWith($"/IncomingPhoneNumbers/{PhoneSid}.json", req.RequestUri!.AbsolutePath);
+            return new HttpResponseMessage(HttpStatusCode.NoContent);
+        });
+        using var client = NewClient(handler);
+        await client.IncomingPhoneNumbers.DeleteAsync(PhoneSid); // does not throw
     }
 
     // -----------------------------------------------------------------------

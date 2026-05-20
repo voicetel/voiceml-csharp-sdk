@@ -4,6 +4,6 @@ namespace VoiceML.Exceptions;
 public sealed class ServerException : ApiException
 {
     /// <summary>Construct with structured fields.</summary>
-    public ServerException(string message, int statusCode, object? code = null, object? body = null)
-        : base(message, statusCode, code, body) { }
+    public ServerException(string message, int statusCode, object? code = null, object? body = null, string? moreInfo = null)
+        : base(message, statusCode, code, body, moreInfo) { }
 }

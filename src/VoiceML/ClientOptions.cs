@@ -29,8 +29,20 @@ public sealed record ClientOptions
     /// HTTP-Basic username on every request.</summary>
     public required string AccountSid { get; init; }
 
-    /// <summary>Per-tenant API key. Sent as the HTTP-Basic password on every request.</summary>
-    public required string ApiKey { get; init; }
+    /// <summary>Per-tenant API key. Sent as the HTTP-Basic password on every request.
+    /// <para>Aliased by <see cref="AuthToken"/> for Twilio-shape ergonomics — set either
+    /// (but not both).</para></summary>
+    public string? ApiKey { get; init; }
+
+    /// <summary>Twilio-shape alias for <see cref="ApiKey"/>. Set one or the other (not
+    /// both — <see cref="Validate"/> throws on conflict). When set, the value is used as
+    /// the HTTP-Basic password identical to <see cref="ApiKey"/>.</summary>
+    public string? AuthToken { get; init; }
+
+    /// <summary>The credential actually used on the wire — whichever of
+    /// <see cref="ApiKey"/> / <see cref="AuthToken"/> was set. Internal-ish, but public
+    /// so the transport can read it after <see cref="Validate"/>.</summary>
+    public string ResolvedCredential => ApiKey ?? AuthToken ?? "";
 
     /// <summary>Server base URL. Defaults to <see cref="DefaultBaseUrl"/>. Override only when
     /// pointing at a staging server.</summary>
@@ -63,9 +75,15 @@ public sealed record ClientOptions
         {
             throw new ConfigurationException("AccountSid is required");
         }
-        if (string.IsNullOrWhiteSpace(ApiKey))
+        var hasApiKey = !string.IsNullOrWhiteSpace(ApiKey);
+        var hasAuthToken = !string.IsNullOrWhiteSpace(AuthToken);
+        if (hasApiKey && hasAuthToken)
         {
-            throw new ConfigurationException("ApiKey is required");
+            throw new ArgumentException("Set either ApiKey or AuthToken — not both. AuthToken is a Twilio-shape alias for ApiKey.");
+        }
+        if (!hasApiKey && !hasAuthToken)
+        {
+            throw new ConfigurationException("ApiKey (or its alias AuthToken) is required");
         }
         if (string.IsNullOrWhiteSpace(BaseUrl))
         {
