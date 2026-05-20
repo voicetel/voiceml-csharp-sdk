@@ -15,7 +15,7 @@ public sealed record Conference
     /// <summary>Friendly name set by the customer (or auto-generated).</summary>
     [JsonPropertyName("friendly_name")] public string FriendlyName { get; init; } = "";
 
-    /// <summary>Current status: <c>in-progress</c> or <c>completed</c>.</summary>
+    /// <summary>Current status: <c>init</c>, <c>in-progress</c>, or <c>completed</c>. Server-side, VoiceML emits only <c>in-progress</c>/<c>completed</c>; <c>init</c> is documented in the spec for Twilio enum-deserializer parity.</summary>
     [JsonPropertyName("status")] public string Status { get; init; } = "";
 
     /// <summary>Conference region.</summary>
