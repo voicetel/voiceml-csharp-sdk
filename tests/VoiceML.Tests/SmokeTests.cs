@@ -482,6 +482,56 @@ public class SmokeTests
     }
 
     // -----------------------------------------------------------------------
+    // Spec v0.6.2: Recording.media_url (D5) + IncomingPhoneNumber.type (D6)
+    // -----------------------------------------------------------------------
+
+    private const string RecSid = "RE" + "0123456789abcdef0123456789abcdef";
+
+    [Fact]
+    public async Task Recording_DeserializesMediaUrl_WhenPresent()
+    {
+        var mediaUrl = "https://s3.example.com/recordings/" + RecSid + ".wav?sig=abc";
+        var handler = new MockHandler(_ =>
+        {
+            var json = "{\"sid\":\"" + RecSid + "\",\"account_sid\":\"" + Sid + "\",\"call_sid\":\"" + CallSid + "\"," +
+                "\"status\":\"completed\",\"uri\":\"/x\",\"media_url\":\"" + mediaUrl + "\"}";
+            return Reply(HttpStatusCode.OK, json);
+        });
+        using var client = NewClient(handler);
+        var rec = await client.Recordings.GetAsync(RecSid);
+        Assert.Equal(mediaUrl, rec.MediaUrl);
+    }
+
+    [Fact]
+    public async Task Recording_MediaUrl_NullWhenAbsent()
+    {
+        var handler = new MockHandler(_ =>
+        {
+            var json = "{\"sid\":\"" + RecSid + "\",\"account_sid\":\"" + Sid + "\",\"call_sid\":\"" + CallSid + "\"," +
+                "\"status\":\"completed\",\"uri\":\"/x\"}";
+            return Reply(HttpStatusCode.OK, json);
+        });
+        using var client = NewClient(handler);
+        var rec = await client.Recordings.GetAsync(RecSid);
+        Assert.Null(rec.MediaUrl);
+    }
+
+    [Fact]
+    public async Task IncomingPhoneNumber_DeserializesType_WhenPresent()
+    {
+        var handler = new MockHandler(_ =>
+        {
+            var json = "{\"sid\":\"" + PhoneSid + "\",\"account_sid\":\"" + Sid + "\"," +
+                "\"phone_number\":\"+18005551234\",\"api_version\":\"2010-04-01\",\"uri\":\"/x\"," +
+                "\"type\":\"local\",\"capabilities\":{\"voice\":true,\"sms\":false,\"mms\":false,\"fax\":false}}";
+            return Reply(HttpStatusCode.OK, json);
+        });
+        using var client = NewClient(handler);
+        var pn = await client.IncomingPhoneNumbers.GetAsync(PhoneSid);
+        Assert.Equal("local", pn.Type);
+    }
+
+    // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
 

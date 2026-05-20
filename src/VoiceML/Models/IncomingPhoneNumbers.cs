@@ -123,6 +123,10 @@ public sealed record IncomingPhoneNumber
     /// <summary>Twilio-compat provisioning status. Empty (not modelled).</summary>
     [JsonPropertyName("status")] public string? Status { get; init; }
 
+    /// <summary>Twilio-compat number type (<c>local</c>, <c>toll-free</c>, <c>mobile</c>, etc.).
+    /// Added in spec v0.6.2 (D6). VoiceML emits the operator-declared classification or empty.</summary>
+    [JsonPropertyName("type")] public string? Type { get; init; }
+
     /// <summary>RFC 3339 creation timestamp.</summary>
     [JsonPropertyName("date_created")] public string? DateCreated { get; init; }
 

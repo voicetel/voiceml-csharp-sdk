@@ -38,6 +38,11 @@ public sealed record Recording
     /// <summary>URI of this recording.</summary>
     [JsonPropertyName("uri")] public string? Uri { get; init; }
 
+    /// <summary>Direct download URL for the recording media (S3 presigned URL or equivalent).
+    /// Added in spec v0.6.2 (D5). When present, callers can fetch the audio bytes without going
+    /// through the SDK's <c>.wav</c> redirect path.</summary>
+    [JsonPropertyName("media_url")] public string? MediaUrl { get; init; }
+
     /// <summary>RFC 3339 creation timestamp.</summary>
     [JsonPropertyName("date_created")] public string? DateCreated { get; init; }
 
