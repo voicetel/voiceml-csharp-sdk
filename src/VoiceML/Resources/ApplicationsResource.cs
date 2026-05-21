@@ -24,10 +24,11 @@ public sealed class ApplicationsResource : ResourceBase
     }
 
     /// <summary>List applications.</summary>
-    public async Task<ApplicationList> ListAsync(CancellationToken ct = default)
+    public async Task<ApplicationList> ListAsync(ListApplicationsParams? filter = null, CancellationToken ct = default)
     {
+        var p = filter ?? new ListApplicationsParams();
         var result = await Transport.SendAsync<ApplicationList>(
-            HttpMethod.Get, Path("Applications"), ct: ct).ConfigureAwait(false);
+            HttpMethod.Get, Path("Applications"), queryParams: p.ToQuery(), ct: ct).ConfigureAwait(false);
         return result ?? new ApplicationList();
     }
 

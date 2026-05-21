@@ -60,6 +60,27 @@ public sealed record ApplicationList : Page
     [JsonPropertyName("applications")] public List<Application> Applications { get; init; } = new();
 }
 
+/// <summary>Query-string params for <c>GET /Applications</c>.</summary>
+public sealed record ListApplicationsParams
+{
+    /// <summary>Filter to applications with this exact friendly name.</summary>
+    public string? FriendlyName { get; init; }
+
+    /// <summary>Zero-based page index.</summary>
+    public int? Page { get; init; }
+
+    /// <summary>Page size.</summary>
+    public int? PageSize { get; init; }
+
+    /// <summary>Render as a query-parameter sequence.</summary>
+    public IEnumerable<KeyValuePair<string, string?>> ToQuery()
+    {
+        yield return new("FriendlyName", FriendlyName);
+        yield return new("Page", Page?.ToString());
+        yield return new("PageSize", PageSize?.ToString());
+    }
+}
+
 /// <summary>Body for <c>POST /Applications</c>. All fields optional per spec.</summary>
 public sealed record CreateApplicationRequest : IFormSerializable
 {

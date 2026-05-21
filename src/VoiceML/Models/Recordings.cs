@@ -23,7 +23,8 @@ public sealed record Recording
     [JsonPropertyName("status")] public string Status { get; init; } = "";
 
     /// <summary>Recording source enum (<c>OutboundAPI</c>, <c>RecordVerb</c>, <c>DialVerb</c>,
-    /// <c>Conference</c>, <c>Trunking</c>, <c>StartCallRecordingAPI</c>).</summary>
+    /// <c>Conference</c>, <c>Trunking</c>, <c>StartCallRecordingAPI</c>,
+    /// <c>StartConferenceRecordingAPI</c>).</summary>
     [JsonPropertyName("source")] public string? Source { get; init; }
 
     /// <summary>Number of audio channels.</summary>
@@ -63,6 +64,10 @@ public sealed record Recording
 
     /// <summary>Map of subresource name → URI.</summary>
     [JsonPropertyName("subresource_uris")] public Dictionary<string, object>? SubresourceUris { get; init; }
+
+    /// <summary>Twilio-canonical per-call error taxonomy for failed recordings. <c>null</c> when
+    /// no error (never <c>0</c> on the wire).</summary>
+    [JsonPropertyName("error_code")] public int? ErrorCode { get; init; }
 }
 
 /// <summary>Recordings list response. The account-scoped endpoint returns the canonical Twilio
@@ -96,6 +101,44 @@ public sealed record RecordingList
 
     /// <summary>URI of this collection.</summary>
     [JsonPropertyName("uri")] public string? Uri { get; init; }
+}
+
+/// <summary>Query-string params for recording list endpoints (<c>GET /Recordings</c> and
+/// <c>GET /Calls/{sid}/Recordings</c>).</summary>
+public sealed record ListRecordingsParams
+{
+    /// <summary>Filter to recordings created on this UTC date (<c>YYYY-MM-DD</c>).</summary>
+    public string? DateCreated { get; init; }
+
+    /// <summary>Recordings created strictly before this UTC date/time. Wire name: <c>DateCreated&lt;</c>.</summary>
+    public string? DateCreatedLt { get; init; }
+
+    /// <summary>Recordings created strictly after this UTC date/time. Wire name: <c>DateCreated&gt;</c>.</summary>
+    public string? DateCreatedGt { get; init; }
+
+    /// <summary>Filter to recordings whose CallSid equals this value (account-scoped list only).</summary>
+    public string? CallSid { get; init; }
+
+    /// <summary>Filter to recordings whose ConferenceSid equals this value (account-scoped list only).</summary>
+    public string? ConferenceSid { get; init; }
+
+    /// <summary>Zero-based page index.</summary>
+    public int? Page { get; init; }
+
+    /// <summary>Page size.</summary>
+    public int? PageSize { get; init; }
+
+    /// <summary>Render as a query-parameter sequence.</summary>
+    public IEnumerable<KeyValuePair<string, string?>> ToQuery()
+    {
+        yield return new("DateCreated", DateCreated);
+        yield return new("DateCreated<", DateCreatedLt);
+        yield return new("DateCreated>", DateCreatedGt);
+        yield return new("CallSid", CallSid);
+        yield return new("ConferenceSid", ConferenceSid);
+        yield return new("Page", Page?.ToString());
+        yield return new("PageSize", PageSize?.ToString());
+    }
 }
 
 /// <summary>Body for <c>POST /Calls/{sid}/Recordings</c>.</summary>

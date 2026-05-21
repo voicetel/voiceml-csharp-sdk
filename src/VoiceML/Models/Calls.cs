@@ -325,11 +325,29 @@ public sealed record ListCallsParams
     /// <summary>Filter to B-legs of the given parent Call SID.</summary>
     public string? ParentCallSid { get; init; }
 
+    /// <summary>Calls started on this UTC date (<c>YYYY-MM-DD</c>). Wire name: <c>StartTime</c>.</summary>
+    public string? StartTime { get; init; }
+
+    /// <summary>Calls started strictly before this UTC date/time. Wire name: <c>StartTime&lt;</c>.</summary>
+    public string? StartTimeLt { get; init; }
+
+    /// <summary>Calls started strictly after this UTC date/time. Wire name: <c>StartTime&gt;</c>.</summary>
+    public string? StartTimeGt { get; init; }
+
     /// <summary>Earliest start_time (inclusive). Serialized as <c>StartTime&gt;=</c>.</summary>
     public string? StartTimeGte { get; init; }
 
     /// <summary>Latest start_time (inclusive). Serialized as <c>StartTime&lt;=</c>.</summary>
     public string? StartTimeLte { get; init; }
+
+    /// <summary>Calls ended on this UTC date (<c>YYYY-MM-DD</c>). Wire name: <c>EndTime</c>.</summary>
+    public string? EndTime { get; init; }
+
+    /// <summary>Calls ended strictly before this UTC date/time. Wire name: <c>EndTime&lt;</c>.</summary>
+    public string? EndTimeLt { get; init; }
+
+    /// <summary>Calls ended strictly after this UTC date/time. Wire name: <c>EndTime&gt;</c>.</summary>
+    public string? EndTimeGt { get; init; }
 
     /// <summary>Zero-based page index.</summary>
     public int? Page { get; init; }
@@ -344,9 +362,32 @@ public sealed record ListCallsParams
         yield return new("From", From);
         yield return new("Status", Status);
         yield return new("ParentCallSid", ParentCallSid);
+        yield return new("StartTime", StartTime);
+        yield return new("StartTime<", StartTimeLt);
+        yield return new("StartTime>", StartTimeGt);
         // Note: literal Twilio query-name with `>=` / `<=`.
         yield return new("StartTime>=", StartTimeGte);
         yield return new("StartTime<=", StartTimeLte);
+        yield return new("EndTime", EndTime);
+        yield return new("EndTime<", EndTimeLt);
+        yield return new("EndTime>", EndTimeGt);
+        yield return new("Page", Page?.ToString());
+        yield return new("PageSize", PageSize?.ToString());
+    }
+}
+
+/// <summary>Pagination params for compat-stub list endpoints (Notifications, Events).</summary>
+public sealed record ListPageParams
+{
+    /// <summary>Zero-based page index.</summary>
+    public int? Page { get; init; }
+
+    /// <summary>Page size.</summary>
+    public int? PageSize { get; init; }
+
+    /// <summary>Render as a query-parameter sequence.</summary>
+    public IEnumerable<KeyValuePair<string, string?>> ToQuery()
+    {
         yield return new("Page", Page?.ToString());
         yield return new("PageSize", PageSize?.ToString());
     }

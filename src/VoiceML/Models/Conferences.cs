@@ -71,13 +71,24 @@ public sealed record Participant
     /// <summary>Whether the participant is on hold.</summary>
     [JsonPropertyName("hold")] public bool Hold { get; init; }
 
+    /// <summary>When <see cref="Coaching"/> is true, the CallSid of the participant this coach
+    /// can speak to (Twilio whisper-coach). Empty when not coaching.</summary>
+    [JsonPropertyName("call_sid_to_coach")] public string? CallSidToCoach { get; init; }
+
+    /// <summary>True when this participant joined with the coach role (Twilio whisper-coach).</summary>
+    [JsonPropertyName("coaching")] public bool Coaching { get; init; }
+
+    /// <summary>Pre-join queue-wait in seconds, string-encoded per Twilio's wire shape.</summary>
+    [JsonPropertyName("queue_time")] public string QueueTime { get; init; } = "";
+
     /// <summary>Whether joining starts the conference.</summary>
     [JsonPropertyName("start_conference_on_enter")] public bool StartConferenceOnEnter { get; init; }
 
     /// <summary>Whether leaving ends the conference.</summary>
     [JsonPropertyName("end_conference_on_exit")] public bool EndConferenceOnExit { get; init; }
 
-    /// <summary>Participant status (<c>queued</c>, <c>connecting</c>, <c>ringing</c>, <c>connected</c>, <c>on-hold</c>, <c>completed</c>).</summary>
+    /// <summary>Participant status (<c>queued</c>, <c>connecting</c>, <c>ringing</c>, <c>connected</c>,
+    /// <c>on-hold</c>, <c>complete</c>, <c>failed</c>, <c>completed</c>).</summary>
     [JsonPropertyName("status")] public string Status { get; init; } = "";
 
     /// <summary>Friendly label.</summary>
@@ -101,6 +112,60 @@ public sealed record ParticipantList : Page
 {
     /// <summary>The page of Participant resources.</summary>
     [JsonPropertyName("participants")] public List<Participant> Participants { get; init; } = new();
+}
+
+/// <summary>Query-string params for <c>GET /Conferences</c>.</summary>
+public sealed record ListConferencesParams
+{
+    /// <summary>Filter to conferences with this exact friendly name.</summary>
+    public string? FriendlyName { get; init; }
+
+    /// <summary>Filter to conferences in this lifecycle state.</summary>
+    public string? Status { get; init; }
+
+    /// <summary>Zero-based page index.</summary>
+    public int? Page { get; init; }
+
+    /// <summary>Page size.</summary>
+    public int? PageSize { get; init; }
+
+    /// <summary>Render as a query-parameter sequence.</summary>
+    public IEnumerable<KeyValuePair<string, string?>> ToQuery()
+    {
+        yield return new("FriendlyName", FriendlyName);
+        yield return new("Status", Status);
+        yield return new("Page", Page?.ToString());
+        yield return new("PageSize", PageSize?.ToString());
+    }
+}
+
+/// <summary>Query-string params for <c>GET /Conferences/{sid}/Participants</c>.</summary>
+public sealed record ListParticipantsParams
+{
+    /// <summary>Filter to participants with this muted state.</summary>
+    public bool? Muted { get; init; }
+
+    /// <summary>Filter to participants with this hold state.</summary>
+    public bool? Hold { get; init; }
+
+    /// <summary>Filter to participants with this coaching state.</summary>
+    public bool? Coaching { get; init; }
+
+    /// <summary>Zero-based page index.</summary>
+    public int? Page { get; init; }
+
+    /// <summary>Page size.</summary>
+    public int? PageSize { get; init; }
+
+    /// <summary>Render as a query-parameter sequence.</summary>
+    public IEnumerable<KeyValuePair<string, string?>> ToQuery()
+    {
+        yield return new("Muted", FormHelpers.BoolStr(Muted));
+        yield return new("Hold", FormHelpers.BoolStr(Hold));
+        yield return new("Coaching", FormHelpers.BoolStr(Coaching));
+        yield return new("Page", Page?.ToString());
+        yield return new("PageSize", PageSize?.ToString());
+    }
 }
 
 /// <summary>Body for <c>POST /Conferences/{sid}</c>. v1 supports only <c>Status=completed</c>.</summary>

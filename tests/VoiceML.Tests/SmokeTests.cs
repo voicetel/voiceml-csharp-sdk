@@ -532,6 +532,117 @@ public class SmokeTests
     }
 
     // -----------------------------------------------------------------------
+    // Spec v0.6.3: Participant coaching fields, Recording.error_code, list filters
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public async Task Participant_DeserializesCoachingFields_WhenPresent()
+    {
+        var handler = new MockHandler(_ => Reply(HttpStatusCode.OK,
+            """{"call_sid":"CA1","conference_sid":"CF1","account_sid":"AC0","muted":false,"hold":false,"coaching":true,"call_sid_to_coach":"CA2","queue_time":"15","start_conference_on_enter":true,"end_conference_on_exit":false,"status":"connected","api_version":"2010-04-01","uri":"/x"}"""));
+        using var client = NewClient(handler);
+        var p = await client.Conferences.GetParticipantAsync("CFconfconfconfconfconfconfconfconfco", CallSid);
+        Assert.True(p.Coaching);
+        Assert.Equal("CA2", p.CallSidToCoach);
+        Assert.Equal("15", p.QueueTime);
+    }
+
+    [Fact]
+    public async Task Recording_DeserializesErrorCode_WhenPresent()
+    {
+        var handler = new MockHandler(_ => Reply(HttpStatusCode.OK,
+            "{\"sid\":\"" + RecSid + "\",\"account_sid\":\"" + Sid + "\",\"call_sid\":\"" + CallSid + "\"," +
+            "\"status\":\"completed\",\"source\":\"StartConferenceRecordingAPI\",\"error_code\":13227,\"uri\":\"/x\"}"));
+        using var client = NewClient(handler);
+        var rec = await client.Recordings.GetAsync(RecSid);
+        Assert.Equal("StartConferenceRecordingAPI", rec.Source);
+        Assert.Equal(13227, rec.ErrorCode);
+    }
+
+    [Fact]
+    public async Task Recording_ErrorCode_NullWhenAbsent()
+    {
+        var handler = new MockHandler(_ => Reply(HttpStatusCode.OK,
+            "{\"sid\":\"" + RecSid + "\",\"account_sid\":\"" + Sid + "\",\"call_sid\":\"" + CallSid + "\"," +
+            "\"status\":\"completed\",\"uri\":\"/x\"}"));
+        using var client = NewClient(handler);
+        var rec = await client.Recordings.GetAsync(RecSid);
+        Assert.Null(rec.ErrorCode);
+    }
+
+    [Fact]
+    public async Task CallsList_StartAndEndTimeFilters_AreLiteralOnTheWire()
+    {
+        var handler = new MockHandler(req =>
+        {
+            var url = req.RequestUri!.ToString();
+            Assert.Contains("StartTime=2025-06-01", url);
+            Assert.Contains("StartTime<", url);
+            Assert.Contains("StartTime>", url);
+            Assert.Contains("EndTime=2025-06-30", url);
+            Assert.Contains("EndTime<", url);
+            Assert.Contains("EndTime>", url);
+            return Reply(HttpStatusCode.OK, """{"calls":[],"page":0,"page_size":50}""");
+        });
+        using var client = NewClient(handler);
+        await client.Calls.ListAsync(new ListCallsParams
+        {
+            StartTime = "2025-06-01",
+            StartTimeLt = "2025-06-15",
+            StartTimeGt = "2025-05-01",
+            EndTime = "2025-06-30",
+            EndTimeLt = "2025-07-01",
+            EndTimeGt = "2025-06-01",
+        });
+    }
+
+    [Fact]
+    public async Task RecordingsList_DateCreatedFilters_AreLiteralOnTheWire()
+    {
+        var handler = new MockHandler(req =>
+        {
+            var url = req.RequestUri!.ToString();
+            Assert.Contains("DateCreated=2025-06-01", url);
+            Assert.Contains("DateCreated<", url);
+            Assert.Contains("DateCreated>", url);
+            Assert.Contains("CallSid=" + CallSid, url);
+            return Reply(HttpStatusCode.OK, """{"recordings":[],"page":0,"page_size":50,"total":0}""");
+        });
+        using var client = NewClient(handler);
+        await client.Recordings.ListAsync(new ListRecordingsParams
+        {
+            DateCreated = "2025-06-01",
+            DateCreatedLt = "2025-06-15",
+            DateCreatedGt = "2025-05-01",
+            CallSid = CallSid,
+            Page = 0,
+            PageSize = 50,
+        });
+    }
+
+    [Fact]
+    public async Task QueuesCreate_MaxSizeZero_OnTheWire()
+    {
+        var handler = new MockHandler(req =>
+        {
+            var body = req.Content!.ReadAsStringAsync().Result;
+            var form = ParseForm(body);
+            Assert.Equal("0", form["MaxSize"]);
+            return Reply(HttpStatusCode.Created,
+                """{"sid":"QUabc","account_sid":"AC0","friendly_name":"support","current_size":0,"max_size":0,"average_wait_time":0,"date_created":"2025-01-01","date_updated":"2025-01-01","uri":"/x"}""");
+        });
+        using var client = NewClient(handler);
+        var q = await client.Queues.CreateAsync(new CreateQueueRequest { FriendlyName = "support", MaxSize = 0 });
+        Assert.Equal(0, q.MaxSize);
+    }
+
+    [Fact]
+    public void Version_Is063()
+    {
+        Assert.Equal("0.6.3", VoiceML.VoiceMLVersion.Version);
+    }
+
+    // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
 

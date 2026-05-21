@@ -73,13 +73,30 @@ public sealed record QueueMemberList : Page
     [JsonPropertyName("queue_members")] public List<QueueMember> QueueMembers { get; init; } = new();
 }
 
+/// <summary>Query-string params for <c>GET /Queues/{sid}/Members</c>.</summary>
+public sealed record ListQueueMembersParams
+{
+    /// <summary>Zero-based page index.</summary>
+    public int? Page { get; init; }
+
+    /// <summary>Page size.</summary>
+    public int? PageSize { get; init; }
+
+    /// <summary>Render as a query-parameter sequence.</summary>
+    public IEnumerable<KeyValuePair<string, string?>> ToQuery()
+    {
+        yield return new("Page", Page?.ToString());
+        yield return new("PageSize", PageSize?.ToString());
+    }
+}
+
 /// <summary>Body for <c>POST /Queues</c>. Idempotent on <see cref="FriendlyName"/>.</summary>
 public sealed record CreateQueueRequest : IFormSerializable
 {
     /// <summary>Friendly name (max 64 chars).</summary>
     public required string FriendlyName { get; init; }
 
-    /// <summary>Maximum queue size.</summary>
+    /// <summary>Maximum queue size. <c>0</c> means unlimited (Twilio default).</summary>
     public int? MaxSize { get; init; }
 
     /// <inheritdoc/>
@@ -96,7 +113,7 @@ public sealed record UpdateQueueRequest : IFormSerializable
     /// <summary>New friendly name.</summary>
     public string? FriendlyName { get; init; }
 
-    /// <summary>New maximum queue size.</summary>
+    /// <summary>New maximum queue size. <c>0</c> means unlimited (Twilio default).</summary>
     public int? MaxSize { get; init; }
 
     /// <inheritdoc/>

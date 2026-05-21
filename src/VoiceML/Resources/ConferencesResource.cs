@@ -13,10 +13,11 @@ public sealed class ConferencesResource : ResourceBase
     public ConferencesResource(Transport transport) : base(transport) { }
 
     /// <summary>List conferences.</summary>
-    public async Task<ConferenceList> ListAsync(CancellationToken ct = default)
+    public async Task<ConferenceList> ListAsync(ListConferencesParams? filter = null, CancellationToken ct = default)
     {
+        var p = filter ?? new ListConferencesParams();
         var result = await Transport.SendAsync<ConferenceList>(
-            HttpMethod.Get, Path("Conferences"), ct: ct).ConfigureAwait(false);
+            HttpMethod.Get, Path("Conferences"), queryParams: p.ToQuery(), ct: ct).ConfigureAwait(false);
         return result ?? new ConferenceList();
     }
 
@@ -42,11 +43,14 @@ public sealed class ConferencesResource : ResourceBase
     }
 
     /// <summary>List participants in a conference.</summary>
-    public async Task<ParticipantList> ListParticipantsAsync(string conferenceSid, CancellationToken ct = default)
+    public async Task<ParticipantList> ListParticipantsAsync(
+        string conferenceSid, ListParticipantsParams? filter = null, CancellationToken ct = default)
     {
+        var p = filter ?? new ListParticipantsParams();
         var result = await Transport.SendAsync<ParticipantList>(
             HttpMethod.Get,
             Path("Conferences", conferenceSid, "Participants"),
+            queryParams: p.ToQuery(),
             ct: ct).ConfigureAwait(false);
         return result ?? new ParticipantList();
     }

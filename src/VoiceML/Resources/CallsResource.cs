@@ -71,11 +71,14 @@ public sealed class CallsResource : ResourceBase
     // -------------------------------------------------------------------
 
     /// <summary>List recordings for a call.</summary>
-    public async Task<RecordingList> ListRecordingsAsync(string callSid, CancellationToken ct = default)
+    public async Task<RecordingList> ListRecordingsAsync(
+        string callSid, ListRecordingsParams? filter = null, CancellationToken ct = default)
     {
+        var p = filter ?? new ListRecordingsParams();
         var result = await Transport.SendAsync<RecordingList>(
             HttpMethod.Get,
             Path("Calls", callSid, "Recordings"),
+            queryParams: p.ToQuery(),
             ct: ct).ConfigureAwait(false);
         return result ?? new RecordingList();
     }
@@ -273,22 +276,28 @@ public sealed class CallsResource : ResourceBase
     // -------------------------------------------------------------------
 
     /// <summary>List notifications for a call. Server always returns an empty page (compat stub).</summary>
-    public async Task<NotificationsList> ListNotificationsAsync(string callSid, CancellationToken ct = default)
+    public async Task<NotificationsList> ListNotificationsAsync(
+        string callSid, ListPageParams? filter = null, CancellationToken ct = default)
     {
+        var p = filter ?? new ListPageParams();
         var result = await Transport.SendAsync<NotificationsList>(
             HttpMethod.Get,
             Path("Calls", callSid, "Notifications"),
+            queryParams: p.ToQuery(),
             ct: ct).ConfigureAwait(false);
         return result ?? new NotificationsList();
     }
 
     /// <summary>List events for a call. Server always returns an empty page (compat stub).
     /// The canonical event source is the customer's StatusCallback URL.</summary>
-    public async Task<EventsList> ListEventsAsync(string callSid, CancellationToken ct = default)
+    public async Task<EventsList> ListEventsAsync(
+        string callSid, ListPageParams? filter = null, CancellationToken ct = default)
     {
+        var p = filter ?? new ListPageParams();
         var result = await Transport.SendAsync<EventsList>(
             HttpMethod.Get,
             Path("Calls", callSid, "Events"),
+            queryParams: p.ToQuery(),
             ct: ct).ConfigureAwait(false);
         return result ?? new EventsList();
     }

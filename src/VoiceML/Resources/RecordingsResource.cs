@@ -18,17 +18,13 @@ public sealed class RecordingsResource : ResourceBase
     public RecordingsResource(Transport transport) : base(transport) { }
 
     /// <summary>List recordings across the entire account.</summary>
-    public async Task<RecordingList> ListAsync(int? page = null, int? pageSize = null, CancellationToken ct = default)
+    public async Task<RecordingList> ListAsync(ListRecordingsParams? filter = null, CancellationToken ct = default)
     {
-        var query = new List<KeyValuePair<string, string?>>
-        {
-            new("Page", page?.ToString()),
-            new("PageSize", pageSize?.ToString()),
-        };
+        var p = filter ?? new ListRecordingsParams();
         var result = await Transport.SendAsync<RecordingList>(
             HttpMethod.Get,
             Path("Recordings"),
-            queryParams: query,
+            queryParams: p.ToQuery(),
             ct: ct).ConfigureAwait(false);
         return result ?? new RecordingList();
     }

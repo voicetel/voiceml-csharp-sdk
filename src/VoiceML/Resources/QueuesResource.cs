@@ -55,10 +55,12 @@ public sealed class QueuesResource : ResourceBase
         => Transport.SendNoContentAsync(HttpMethod.Delete, Path("Queues", queueSid), ct: ct);
 
     /// <summary>List the members currently waiting in a queue.</summary>
-    public async Task<QueueMemberList> ListMembersAsync(string queueSid, CancellationToken ct = default)
+    public async Task<QueueMemberList> ListMembersAsync(
+        string queueSid, ListQueueMembersParams? filter = null, CancellationToken ct = default)
     {
+        var p = filter ?? new ListQueueMembersParams();
         var result = await Transport.SendAsync<QueueMemberList>(
-            HttpMethod.Get, Path("Queues", queueSid, "Members"), ct: ct).ConfigureAwait(false);
+            HttpMethod.Get, Path("Queues", queueSid, "Members"), queryParams: p.ToQuery(), ct: ct).ConfigureAwait(false);
         return result ?? new QueueMemberList();
     }
 
