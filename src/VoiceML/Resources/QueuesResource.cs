@@ -24,10 +24,11 @@ public sealed class QueuesResource : ResourceBase
     }
 
     /// <summary>List queues.</summary>
-    public async Task<QueueList> ListAsync(CancellationToken ct = default)
+    public async Task<QueueList> ListAsync(ListPageParams? filter = null, CancellationToken ct = default)
     {
+        var p = filter ?? new ListPageParams();
         var result = await Transport.SendAsync<QueueList>(
-            HttpMethod.Get, Path("Queues"), ct: ct).ConfigureAwait(false);
+            HttpMethod.Get, Path("Queues"), queryParams: p.ToQuery(), ct: ct).ConfigureAwait(false);
         return result ?? new QueueList();
     }
 

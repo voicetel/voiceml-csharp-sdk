@@ -86,11 +86,14 @@ public sealed class ConferencesResource : ResourceBase
             ct: ct);
 
     /// <summary>List recordings made on a conference.</summary>
-    public async Task<RecordingList> ListRecordingsAsync(string conferenceSid, CancellationToken ct = default)
+    public async Task<RecordingList> ListRecordingsAsync(
+        string conferenceSid, ListCallRecordingsParams? filter = null, CancellationToken ct = default)
     {
+        var p = filter ?? new ListCallRecordingsParams();
         var result = await Transport.SendAsync<RecordingList>(
             HttpMethod.Get,
             Path("Conferences", conferenceSid, "Recordings"),
+            queryParams: p.ToQuery(),
             ct: ct).ConfigureAwait(false);
         return result ?? new RecordingList();
     }

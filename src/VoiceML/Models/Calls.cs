@@ -355,6 +355,9 @@ public sealed record ListCallsParams
     /// <summary>Page size.</summary>
     public int? PageSize { get; init; }
 
+    /// <summary>Opaque cursor for the next page (spec v0.6.4).</summary>
+    public string? PageToken { get; init; }
+
     /// <summary>Render as the Twilio-shape query-parameter sequence.</summary>
     public IEnumerable<KeyValuePair<string, string?>> ToQuery()
     {
@@ -373,10 +376,11 @@ public sealed record ListCallsParams
         yield return new("EndTime>", EndTimeGt);
         yield return new("Page", Page?.ToString());
         yield return new("PageSize", PageSize?.ToString());
+        yield return new("PageToken", PageToken);
     }
 }
 
-/// <summary>Pagination params for compat-stub list endpoints (Notifications, Events).</summary>
+/// <summary>Pagination params for list endpoints (Notifications, Events, Queues, …).</summary>
 public sealed record ListPageParams
 {
     /// <summary>Zero-based page index.</summary>
@@ -385,11 +389,15 @@ public sealed record ListPageParams
     /// <summary>Page size.</summary>
     public int? PageSize { get; init; }
 
+    /// <summary>Opaque cursor for the next page (spec v0.6.4).</summary>
+    public string? PageToken { get; init; }
+
     /// <summary>Render as a query-parameter sequence.</summary>
     public IEnumerable<KeyValuePair<string, string?>> ToQuery()
     {
         yield return new("Page", Page?.ToString());
         yield return new("PageSize", PageSize?.ToString());
+        yield return new("PageToken", PageToken);
     }
 }
 

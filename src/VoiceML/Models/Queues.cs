@@ -82,11 +82,15 @@ public sealed record ListQueueMembersParams
     /// <summary>Page size.</summary>
     public int? PageSize { get; init; }
 
+    /// <summary>Opaque cursor for the next page (spec v0.6.4).</summary>
+    public string? PageToken { get; init; }
+
     /// <summary>Render as a query-parameter sequence.</summary>
     public IEnumerable<KeyValuePair<string, string?>> ToQuery()
     {
         yield return new("Page", Page?.ToString());
         yield return new("PageSize", PageSize?.ToString());
+        yield return new("PageToken", PageToken);
     }
 }
 

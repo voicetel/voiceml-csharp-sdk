@@ -637,9 +637,22 @@ public class SmokeTests
     }
 
     [Fact]
-    public void Version_Is063()
+    public async Task CallsList_PageToken_IsOnTheWire()
     {
-        Assert.Equal("0.6.3", VoiceML.VoiceMLVersion.Version);
+        var handler = new MockHandler(req =>
+        {
+            var url = req.RequestUri!.ToString();
+            Assert.Contains("PageToken=cursor-abc123", url);
+            return Reply(HttpStatusCode.OK, """{"calls":[],"page":0,"page_size":50}""");
+        });
+        using var client = NewClient(handler);
+        await client.Calls.ListAsync(new ListCallsParams { PageToken = "cursor-abc123" });
+    }
+
+    [Fact]
+    public void Version_Is064()
+    {
+        Assert.Equal("0.6.4", VoiceML.VoiceMLVersion.Version);
     }
 
     // -----------------------------------------------------------------------

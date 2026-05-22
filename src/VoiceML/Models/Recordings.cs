@@ -128,6 +128,9 @@ public sealed record ListRecordingsParams
     /// <summary>Page size.</summary>
     public int? PageSize { get; init; }
 
+    /// <summary>Opaque cursor for the next page (spec v0.6.4).</summary>
+    public string? PageToken { get; init; }
+
     /// <summary>Render as a query-parameter sequence.</summary>
     public IEnumerable<KeyValuePair<string, string?>> ToQuery()
     {
@@ -138,6 +141,41 @@ public sealed record ListRecordingsParams
         yield return new("ConferenceSid", ConferenceSid);
         yield return new("Page", Page?.ToString());
         yield return new("PageSize", PageSize?.ToString());
+        yield return new("PageToken", PageToken);
+    }
+}
+
+/// <summary>Query-string params for <c>GET /Calls/{sid}/Recordings</c> and
+/// <c>GET /Conferences/{sid}/Recordings</c>.</summary>
+public sealed record ListCallRecordingsParams
+{
+    /// <summary>Filter to recordings created on this UTC date (<c>YYYY-MM-DD</c>).</summary>
+    public string? DateCreated { get; init; }
+
+    /// <summary>Recordings created strictly before this UTC date/time. Wire name: <c>DateCreated&lt;</c>.</summary>
+    public string? DateCreatedLt { get; init; }
+
+    /// <summary>Recordings created strictly after this UTC date/time. Wire name: <c>DateCreated&gt;</c>.</summary>
+    public string? DateCreatedGt { get; init; }
+
+    /// <summary>Zero-based page index.</summary>
+    public int? Page { get; init; }
+
+    /// <summary>Page size.</summary>
+    public int? PageSize { get; init; }
+
+    /// <summary>Opaque cursor for the next page (spec v0.6.4).</summary>
+    public string? PageToken { get; init; }
+
+    /// <summary>Render as a query-parameter sequence.</summary>
+    public IEnumerable<KeyValuePair<string, string?>> ToQuery()
+    {
+        yield return new("DateCreated", DateCreated);
+        yield return new("DateCreated<", DateCreatedLt);
+        yield return new("DateCreated>", DateCreatedGt);
+        yield return new("Page", Page?.ToString());
+        yield return new("PageSize", PageSize?.ToString());
+        yield return new("PageToken", PageToken);
     }
 }
 
