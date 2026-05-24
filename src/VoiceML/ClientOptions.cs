@@ -30,11 +30,11 @@ public sealed record ClientOptions
     public required string AccountSid { get; init; }
 
     /// <summary>Per-tenant API key. Sent as the HTTP-Basic password on every request.
-    /// <para>Aliased by <see cref="AuthToken"/> for Twilio-shape ergonomics — set either
+    /// <para>Aliased by <see cref="AuthToken"/> for Twilio-compatible ergonomics — set either
     /// (but not both).</para></summary>
     public string? ApiKey { get; init; }
 
-    /// <summary>Twilio-shape alias for <see cref="ApiKey"/>. Set one or the other (not
+    /// <summary>Twilio-compatible alias for <see cref="ApiKey"/>. Set one or the other (not
     /// both — <see cref="Validate"/> throws on conflict). When set, the value is used as
     /// the HTTP-Basic password identical to <see cref="ApiKey"/>.</summary>
     public string? AuthToken { get; init; }
@@ -79,7 +79,7 @@ public sealed record ClientOptions
         var hasAuthToken = !string.IsNullOrWhiteSpace(AuthToken);
         if (hasApiKey && hasAuthToken)
         {
-            throw new ArgumentException("Set either ApiKey or AuthToken — not both. AuthToken is a Twilio-shape alias for ApiKey.");
+            throw new ArgumentException("Set either ApiKey or AuthToken — not both. AuthToken is a Twilio-compatible alias for ApiKey.");
         }
         if (!hasApiKey && !hasAuthToken)
         {

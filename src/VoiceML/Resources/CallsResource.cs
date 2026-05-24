@@ -277,15 +277,26 @@ public sealed class CallsResource : ResourceBase
 
     /// <summary>List notifications for a call. Server always returns an empty page (compat stub).</summary>
     public async Task<NotificationsList> ListNotificationsAsync(
-        string callSid, ListPageParams? filter = null, CancellationToken ct = default)
+        string callSid, ListNotificationsParams? filter = null, CancellationToken ct = default)
     {
-        var p = filter ?? new ListPageParams();
+        var p = filter ?? new ListNotificationsParams();
         var result = await Transport.SendAsync<NotificationsList>(
             HttpMethod.Get,
             Path("Calls", callSid, "Notifications"),
             queryParams: p.ToQuery(),
             ct: ct).ConfigureAwait(false);
         return result ?? new NotificationsList();
+    }
+
+    /// <summary>Fetch a per-call notification. Always 404 today (compat stub).</summary>
+    public async Task<Dictionary<string, object?>> GetNotificationAsync(
+        string callSid, string notificationSid, CancellationToken ct = default)
+    {
+        var result = await Transport.SendAsync<Dictionary<string, object?>>(
+            HttpMethod.Get,
+            Path("Calls", callSid, "Notifications", notificationSid),
+            ct: ct).ConfigureAwait(false);
+        return result ?? throw new ApiException("empty body on GET /Calls/{sid}/Notifications/{nid}", 200);
     }
 
     /// <summary>List events for a call. Server always returns an empty page (compat stub).

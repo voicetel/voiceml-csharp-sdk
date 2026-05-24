@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace VoiceML.Models;
 
-/// <summary>A Twilio-shape Conference resource.</summary>
+/// <summary>A Twilio-compatible Conference resource.</summary>
 public sealed record Conference
 {
     /// <summary>Conference SID (<c>CF</c> + 32 hex).</summary>
@@ -123,6 +123,24 @@ public sealed record ListConferencesParams
     /// <summary>Filter to conferences in this lifecycle state.</summary>
     public string? Status { get; init; }
 
+    /// <summary>Filter to conferences created on this UTC date.</summary>
+    public string? DateCreated { get; init; }
+
+    /// <summary>Conferences created strictly before this date. Wire name: <c>DateCreated&lt;</c>.</summary>
+    public string? DateCreatedLt { get; init; }
+
+    /// <summary>Conferences created strictly after this date. Wire name: <c>DateCreated&gt;</c>.</summary>
+    public string? DateCreatedGt { get; init; }
+
+    /// <summary>Filter to conferences updated on this UTC date.</summary>
+    public string? DateUpdated { get; init; }
+
+    /// <summary>Conferences updated strictly before this date. Wire name: <c>DateUpdated&lt;</c>.</summary>
+    public string? DateUpdatedLt { get; init; }
+
+    /// <summary>Conferences updated strictly after this date. Wire name: <c>DateUpdated&gt;</c>.</summary>
+    public string? DateUpdatedGt { get; init; }
+
     /// <summary>Zero-based page index.</summary>
     public int? Page { get; init; }
 
@@ -137,6 +155,12 @@ public sealed record ListConferencesParams
     {
         yield return new("FriendlyName", FriendlyName);
         yield return new("Status", Status);
+        yield return new("DateCreated", DateCreated);
+        yield return new("DateCreated<", DateCreatedLt);
+        yield return new("DateCreated>", DateCreatedGt);
+        yield return new("DateUpdated", DateUpdated);
+        yield return new("DateUpdated<", DateUpdatedLt);
+        yield return new("DateUpdated>", DateUpdatedGt);
         yield return new("Page", Page?.ToString());
         yield return new("PageSize", PageSize?.ToString());
         yield return new("PageToken", PageToken);
@@ -204,5 +228,55 @@ public sealed record UpdateParticipantRequest : IFormSerializable
     {
         yield return new("Muted", FormHelpers.BoolStr(Muted));
         yield return new("Hold", FormHelpers.BoolStr(Hold));
+    }
+}
+
+/// <summary>Body for <c>POST /Conferences/{sid}/Participants</c>. <see cref="From"/> and
+/// <see cref="To"/> are required.</summary>
+public sealed record CreateParticipantRequest : IFormSerializable
+{
+    /// <summary>Caller ID for the outbound leg.</summary>
+    public required string From { get; init; }
+
+    /// <summary>Destination number for the outbound leg.</summary>
+    public required string To { get; init; }
+
+    /// <summary>Participant label.</summary>
+    public string? Label { get; init; }
+
+    /// <summary>Join muted.</summary>
+    public bool? Muted { get; init; }
+
+    /// <summary>Start conference when this participant enters.</summary>
+    public bool? StartConferenceOnEnter { get; init; }
+
+    /// <summary>End conference when this participant exits.</summary>
+    public bool? EndConferenceOnExit { get; init; }
+
+    /// <summary>Dial timeout in seconds.</summary>
+    public int? Timeout { get; init; }
+
+    /// <summary>Status callback URL.</summary>
+    public string? StatusCallback { get; init; }
+
+    /// <summary>Status callback HTTP method.</summary>
+    public string? StatusCallbackMethod { get; init; }
+
+    /// <summary>Status callback events.</summary>
+    public string? StatusCallbackEvent { get; init; }
+
+    /// <inheritdoc/>
+    public IEnumerable<KeyValuePair<string, string?>> ToForm()
+    {
+        yield return new("From", From);
+        yield return new("To", To);
+        yield return new("Label", Label);
+        yield return new("Muted", FormHelpers.BoolStr(Muted));
+        yield return new("StartConferenceOnEnter", FormHelpers.BoolStr(StartConferenceOnEnter));
+        yield return new("EndConferenceOnExit", FormHelpers.BoolStr(EndConferenceOnExit));
+        yield return new("Timeout", Timeout?.ToString());
+        yield return new("StatusCallback", StatusCallback);
+        yield return new("StatusCallbackMethod", StatusCallbackMethod);
+        yield return new("StatusCallbackEvent", StatusCallbackEvent);
     }
 }

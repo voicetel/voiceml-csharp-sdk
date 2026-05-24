@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace VoiceML.Models;
 
-/// <summary>A Twilio-shape Queue resource.</summary>
+/// <summary>A Twilio-compatible Queue resource.</summary>
 public sealed record Queue
 {
     /// <summary>Queue SID (<c>QU</c> + 32 hex).</summary>

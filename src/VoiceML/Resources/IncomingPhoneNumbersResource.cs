@@ -17,7 +17,7 @@ public sealed class IncomingPhoneNumbersResource : ResourceBase
 
     /// <summary>List DIDs assigned to the authenticated tenant. Use
     /// <see cref="ListIncomingPhoneNumbersOptions.PhoneNumber"/> for the
-    /// Twilio-canonical exact-match lookup pattern.</summary>
+    /// Twilio-compatible exact-match lookup pattern.</summary>
     public async Task<IncomingPhoneNumberList> ListAsync(
         ListIncomingPhoneNumbersOptions? options = null, CancellationToken ct = default)
     {
@@ -89,4 +89,57 @@ public sealed class IncomingPhoneNumbersResource : ResourceBase
     /// <summary>Synchronous delete wrapper. Blocks; prefer <see cref="DeleteAsync"/>.</summary>
     public void Delete(string sid)
         => DeleteAsync(sid).GetAwaiter().GetResult();
+
+    /// <summary>List local DIDs. GET /IncomingPhoneNumbers/Local.</summary>
+    public Task<IncomingPhoneNumberList> ListLocalAsync(
+        ListTypedIncomingPhoneNumbersOptions? options = null, CancellationToken ct = default)
+        => ListTypedAsync("Local", options, ct);
+
+    /// <summary>Assign a local DID. POST /IncomingPhoneNumbers/Local.</summary>
+    public Task<IncomingPhoneNumber> CreateLocalAsync(
+        CreateIncomingPhoneNumberOptions options, CancellationToken ct = default)
+        => CreateTypedAsync("Local", options, ct);
+
+    /// <summary>List mobile DIDs. GET /IncomingPhoneNumbers/Mobile.</summary>
+    public Task<IncomingPhoneNumberList> ListMobileAsync(
+        ListTypedIncomingPhoneNumbersOptions? options = null, CancellationToken ct = default)
+        => ListTypedAsync("Mobile", options, ct);
+
+    /// <summary>Assign a mobile DID. POST /IncomingPhoneNumbers/Mobile.</summary>
+    public Task<IncomingPhoneNumber> CreateMobileAsync(
+        CreateIncomingPhoneNumberOptions options, CancellationToken ct = default)
+        => CreateTypedAsync("Mobile", options, ct);
+
+    /// <summary>List toll-free DIDs. GET /IncomingPhoneNumbers/TollFree.</summary>
+    public Task<IncomingPhoneNumberList> ListTollFreeAsync(
+        ListTypedIncomingPhoneNumbersOptions? options = null, CancellationToken ct = default)
+        => ListTypedAsync("TollFree", options, ct);
+
+    /// <summary>Assign a toll-free DID. POST /IncomingPhoneNumbers/TollFree.</summary>
+    public Task<IncomingPhoneNumber> CreateTollFreeAsync(
+        CreateIncomingPhoneNumberOptions options, CancellationToken ct = default)
+        => CreateTypedAsync("TollFree", options, ct);
+
+    private async Task<IncomingPhoneNumberList> ListTypedAsync(
+        string kind, ListTypedIncomingPhoneNumbersOptions? options, CancellationToken ct)
+    {
+        var opts = options ?? new ListTypedIncomingPhoneNumbersOptions();
+        var result = await Transport.SendAsync<IncomingPhoneNumberList>(
+            HttpMethod.Get,
+            Path("IncomingPhoneNumbers", kind),
+            queryParams: opts.ToQuery(),
+            ct: ct).ConfigureAwait(false);
+        return result ?? new IncomingPhoneNumberList();
+    }
+
+    private async Task<IncomingPhoneNumber> CreateTypedAsync(
+        string kind, CreateIncomingPhoneNumberOptions options, CancellationToken ct)
+    {
+        var result = await Transport.SendAsync<IncomingPhoneNumber>(
+            HttpMethod.Post,
+            Path("IncomingPhoneNumbers", kind),
+            formBody: options.ToForm(),
+            ct: ct).ConfigureAwait(false);
+        return result ?? throw new ApiException($"empty body on POST /IncomingPhoneNumbers/{kind}", 201);
+    }
 }

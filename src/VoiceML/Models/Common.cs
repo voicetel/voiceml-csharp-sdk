@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace VoiceML.Models;
 
-/// <summary>Twilio-shape pagination envelope. Concrete list types
+/// <summary>Twilio-compatible pagination envelope. Concrete list types
 /// (e.g. <see cref="CallList"/>) inherit from this and add their typed item collection.</summary>
 public abstract record Page
 {
@@ -38,7 +38,7 @@ public abstract record Page
     [JsonPropertyName("uri")] public string? Uri { get; init; }
 }
 
-/// <summary>Twilio-shape error body. The transport raises a <see cref="VoiceML.Exceptions.ApiException"/>
+/// <summary>Twilio-compatible error body. The transport raises a <see cref="VoiceML.Exceptions.ApiException"/>
 /// (or subclass) with this payload attached on <c>Body</c>.</summary>
 public sealed record ErrorBody
 {

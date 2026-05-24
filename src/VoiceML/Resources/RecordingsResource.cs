@@ -30,10 +30,12 @@ public sealed class RecordingsResource : ResourceBase
     }
 
     /// <summary>Fetch the metadata JSON for a recording.</summary>
-    public async Task<Recording> GetAsync(string recordingSid, CancellationToken ct = default)
+    public async Task<Recording> GetAsync(
+        string recordingSid, GetRecordingParams? filter = null, CancellationToken ct = default)
     {
+        IEnumerable<KeyValuePair<string, string?>>? query = filter?.ToQuery();
         var result = await Transport.SendAsync<Recording>(
-            HttpMethod.Get, Path("Recordings", recordingSid), ct: ct).ConfigureAwait(false);
+            HttpMethod.Get, Path("Recordings", recordingSid), queryParams: query, ct: ct).ConfigureAwait(false);
         return result ?? throw new ApiException("empty body on GET /Recordings/{sid}", 200);
     }
 

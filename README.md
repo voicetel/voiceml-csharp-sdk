@@ -1,7 +1,7 @@
 # VoiceML — .NET SDK
 
 Official .NET SDK for [VoiceML](https://voicetel.com/docs/api/v0.6/voiceml/), VoiceTel's outbound voice + AMD
-service with a Twilio-shaped REST surface.
+service with a Twilio-compatible REST surface.
 
 - **Target framework:** `net8.0`
 - **Dependencies:** none (the SDK ships with zero NuGet dependencies — uses `System.Net.Http` and
@@ -93,7 +93,7 @@ Each carries `StatusCode`, `Code` (numeric Twilio code, when present), `MoreInfo
 new ClientOptions
 {
     AccountSid = "AC...",
-    ApiKey     = "...",                              // or AuthToken — Twilio-shape alias; set only one
+    ApiKey     = "...",                              // or AuthToken — Twilio-compatible alias; set only one
     BaseUrl    = "https://voiceml.voicetel.com",   // default
     Timeout    = TimeSpan.FromSeconds(30),          // default
     MaxRetries = 2,                                  // default; 0 disables retries

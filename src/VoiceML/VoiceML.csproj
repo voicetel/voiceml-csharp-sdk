@@ -10,13 +10,13 @@
     <NoWarn>$(NoWarn);CS1591</NoWarn>
 
     <PackageId>VoiceML</PackageId>
-    <Version>0.6.4</Version>
-    <AssemblyVersion>0.6.4.0</AssemblyVersion>
-    <FileVersion>0.6.4.0</FileVersion>
+    <Version>0.6.6</Version>
+    <AssemblyVersion>0.6.6.0</AssemblyVersion>
+    <FileVersion>0.6.6.0</FileVersion>
     <Authors>VoiceTel</Authors>
     <Company>VoiceTel</Company>
     <Product>VoiceML</Product>
-    <Description>Official .NET SDK for VoiceML — VoiceTel's outbound voice + AMD service with a Twilio-shaped REST surface.</Description>
+    <Description>Official .NET SDK for VoiceML — VoiceTel's outbound voice + AMD service with a Twilio-compatible REST surface.</Description>
     <PackageProjectUrl>https://voiceml.voicetel.com</PackageProjectUrl>
     <RepositoryUrl>https://github.com/voicetel/voiceml-csharp-sdk</RepositoryUrl>
     <RepositoryType>git</RepositoryType>

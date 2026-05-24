@@ -85,6 +85,18 @@ public sealed class ConferencesResource : ResourceBase
             Path("Conferences", conferenceSid, "Participants", callSid),
             ct: ct);
 
+    /// <summary>Dial a leg into a conference.</summary>
+    public async Task<Participant> CreateParticipantAsync(
+        string conferenceSid, CreateParticipantRequest request, CancellationToken ct = default)
+    {
+        var result = await Transport.SendAsync<Participant>(
+            HttpMethod.Post,
+            Path("Conferences", conferenceSid, "Participants"),
+            formBody: request.ToForm(),
+            ct: ct).ConfigureAwait(false);
+        return result ?? throw new ApiException("empty body on POST /Conferences/{sid}/Participants", 201);
+    }
+
     /// <summary>List recordings made on a conference.</summary>
     public async Task<RecordingList> ListRecordingsAsync(
         string conferenceSid, ListCallRecordingsParams? filter = null, CancellationToken ct = default)
@@ -97,4 +109,36 @@ public sealed class ConferencesResource : ResourceBase
             ct: ct).ConfigureAwait(false);
         return result ?? new RecordingList();
     }
+
+    /// <summary>Fetch metadata for a conference-scoped recording.</summary>
+    public async Task<Recording> GetRecordingAsync(
+        string conferenceSid, string recordingSid, CancellationToken ct = default)
+    {
+        var result = await Transport.SendAsync<Recording>(
+            HttpMethod.Get,
+            Path("Conferences", conferenceSid, "Recordings", recordingSid),
+            ct: ct).ConfigureAwait(false);
+        return result ?? throw new ApiException("empty body on GET /Conferences/{sid}/Recordings/{rsid}", 200);
+    }
+
+    /// <summary>Update a conference-scoped recording.</summary>
+    public async Task<Recording> UpdateRecordingAsync(
+        string conferenceSid, string recordingSid, UpdateRecordingRequest request,
+        CancellationToken ct = default)
+    {
+        var result = await Transport.SendAsync<Recording>(
+            HttpMethod.Post,
+            Path("Conferences", conferenceSid, "Recordings", recordingSid),
+            formBody: request.ToForm(),
+            ct: ct).ConfigureAwait(false);
+        return result ?? throw new ApiException("empty body on POST /Conferences/{sid}/Recordings/{rsid}", 200);
+    }
+
+    /// <summary>Delete a conference-scoped recording.</summary>
+    public Task DeleteRecordingAsync(
+        string conferenceSid, string recordingSid, CancellationToken ct = default)
+        => Transport.SendNoContentAsync(
+            HttpMethod.Delete,
+            Path("Conferences", conferenceSid, "Recordings", recordingSid),
+            ct: ct);
 }

@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace VoiceML.Models;
 
-/// <summary>A Twilio-shape Application resource — a persistent TwiML+callback bundle
+/// <summary>A Twilio-compatible Application resource — a persistent TwiML+callback bundle
 /// dispatched by <c>&lt;Dial&gt;&lt;Application&gt;</c>.</summary>
 public sealed record Application
 {

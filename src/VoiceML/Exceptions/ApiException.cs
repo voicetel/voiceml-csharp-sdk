@@ -3,7 +3,7 @@ using System;
 namespace VoiceML.Exceptions;
 
 /// <summary>Catch-all for non-2xx API responses. Specific status families have subclasses;
-/// catch <see cref="ApiException"/> to handle them all uniformly. The Twilio-shape error
+/// catch <see cref="ApiException"/> to handle them all uniformly. The Twilio-compatible error
 /// body (<c>{code, message, more_info, status}</c>) is parsed into <see cref="Code"/>
 /// / <see cref="Exception.Message"/> / <see cref="MoreInfo"/> when present; the raw
 /// payload is on <see cref="Body"/>.</summary>
@@ -15,7 +15,7 @@ public class ApiException : VoiceMLException
     /// <summary>Twilio-format error code from the response body, when present. May be int or string.</summary>
     public object? Code { get; }
 
-    /// <summary>Twilio-shape <c>more_info</c> URL from the error body, when present.
+    /// <summary>Twilio-compatible <c>more_info</c> URL from the error body, when present.
     /// Documentation URL that explains the error class.</summary>
     public string? MoreInfo { get; }
 

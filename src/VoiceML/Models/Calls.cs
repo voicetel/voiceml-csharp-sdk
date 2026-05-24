@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace VoiceML.Models;
 
-/// <summary>A Twilio-shape Call resource.</summary>
+/// <summary>A Twilio-compatible Call resource.</summary>
 public sealed record Call
 {
     /// <summary>Twilio-format Call SID (<c>CA</c> + 32 hex).</summary>
@@ -358,7 +358,7 @@ public sealed record ListCallsParams
     /// <summary>Opaque cursor for the next page (spec v0.6.4).</summary>
     public string? PageToken { get; init; }
 
-    /// <summary>Render as the Twilio-shape query-parameter sequence.</summary>
+    /// <summary>Render as the Twilio-compatible query-parameter sequence.</summary>
     public IEnumerable<KeyValuePair<string, string?>> ToQuery()
     {
         yield return new("To", To);
@@ -398,6 +398,43 @@ public sealed record ListPageParams
         yield return new("Page", Page?.ToString());
         yield return new("PageSize", PageSize?.ToString());
         yield return new("PageToken", PageToken);
+    }
+}
+
+/// <summary>Query params for <c>GET /Notifications</c> and <c>GET /Calls/{sid}/Notifications</c>.</summary>
+public sealed record ListNotificationsParams
+{
+    /// <summary>Zero-based page index.</summary>
+    public int? Page { get; init; }
+
+    /// <summary>Page size.</summary>
+    public int? PageSize { get; init; }
+
+    /// <summary>Opaque cursor for the next page.</summary>
+    public string? PageToken { get; init; }
+
+    /// <summary>Log filter (Twilio compat).</summary>
+    public int? Log { get; init; }
+
+    /// <summary>Filter to notifications on this UTC date.</summary>
+    public string? MessageDate { get; init; }
+
+    /// <summary>Notifications strictly before this date. Wire name: <c>MessageDate&lt;</c>.</summary>
+    public string? MessageDateLt { get; init; }
+
+    /// <summary>Notifications strictly after this date. Wire name: <c>MessageDate&gt;</c>.</summary>
+    public string? MessageDateGt { get; init; }
+
+    /// <summary>Render as a query-parameter sequence.</summary>
+    public IEnumerable<KeyValuePair<string, string?>> ToQuery()
+    {
+        yield return new("Page", Page?.ToString());
+        yield return new("PageSize", PageSize?.ToString());
+        yield return new("PageToken", PageToken);
+        yield return new("Log", Log?.ToString());
+        yield return new("MessageDate", MessageDate);
+        yield return new("MessageDate<", MessageDateLt);
+        yield return new("MessageDate>", MessageDateGt);
     }
 }
 

@@ -650,9 +650,55 @@ public class SmokeTests
     }
 
     [Fact]
-    public void Version_Is064()
+    public void Version_Is066()
     {
-        Assert.Equal("0.6.4", VoiceML.VoiceMLVersion.Version);
+        Assert.Equal("0.6.6", VoiceML.VoiceMLVersion.Version);
+    }
+
+    [Fact]
+    public async Task ConferencesCreateParticipant_SendsFromAndTo()
+    {
+        var confSid = "CF" + new string('f', 32);
+        var handler = new MockHandler(req =>
+        {
+            Assert.Equal(HttpMethod.Post, req.Method);
+            var body = req.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+            Assert.Contains("From=%2B18005550000", body);
+            Assert.Contains("To=%2B18005551234", body);
+            return Reply(HttpStatusCode.Created, $$"""
+                {"call_sid":"CA{{new string('f', 32)}}","conference_sid":"{{confSid}}",
+                 "account_sid":"{{Sid}}","status":"queued","api_version":"2010-04-01","uri":"/x"}
+                """);
+        });
+        using var client = NewClient(handler);
+        await client.Conferences.CreateParticipantAsync(confSid, new CreateParticipantRequest
+        {
+            From = "+18005550000",
+            To = "+18005551234",
+        });
+    }
+
+    [Fact]
+    public async Task CallsListNotifications_SendsLogAndMessageDateFilters()
+    {
+        var callSid = "CA" + new string('f', 32);
+        var handler = new MockHandler(req =>
+        {
+            var url = req.RequestUri!.ToString();
+            Assert.Contains("Log=1", url);
+            Assert.Contains("MessageDate=2026-05-01", url);
+            Assert.Contains("MessageDate<=2026-05-02", url);
+            Assert.Contains("MessageDate>=2026-04-30", url);
+            return Reply(HttpStatusCode.OK, """{"notifications":[],"page":0,"page_size":50,"total":0}""");
+        });
+        using var client = NewClient(handler);
+        await client.Calls.ListNotificationsAsync(callSid, new ListNotificationsParams
+        {
+            Log = 1,
+            MessageDate = "2026-05-01",
+            MessageDateLt = "2026-05-02",
+            MessageDateGt = "2026-04-30",
+        });
     }
 
     // -----------------------------------------------------------------------

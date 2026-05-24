@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace VoiceML.Models;
 
-/// <summary>A Twilio-shape Recording resource.</summary>
+/// <summary>A Twilio-compatible Recording resource.</summary>
 public sealed record Recording
 {
     /// <summary>Recording SID (<c>RE</c> + 32 hex).</summary>
@@ -65,13 +65,13 @@ public sealed record Recording
     /// <summary>Map of subresource name → URI.</summary>
     [JsonPropertyName("subresource_uris")] public Dictionary<string, object>? SubresourceUris { get; init; }
 
-    /// <summary>Twilio-canonical per-call error taxonomy for failed recordings. <c>null</c> when
+    /// <summary>Twilio-compatible per-call error code for failed recordings. <c>null</c> when
     /// no error (never <c>0</c> on the wire).</summary>
     [JsonPropertyName("error_code")] public int? ErrorCode { get; init; }
 }
 
-/// <summary>Recordings list response. The account-scoped endpoint returns the canonical Twilio
-/// pagination fields; per-call and per-conference endpoints currently return only the
+/// <summary>Recordings list response. The account-scoped endpoint returns the full Twilio-compatible
+/// pagination envelope; per-call and per-conference endpoints currently return only the
 /// <c>recordings</c> array.</summary>
 public sealed record RecordingList
 {
@@ -122,6 +122,9 @@ public sealed record ListRecordingsParams
     /// <summary>Filter to recordings whose ConferenceSid equals this value (account-scoped list only).</summary>
     public string? ConferenceSid { get; init; }
 
+    /// <summary>Include soft-deleted recordings in the list.</summary>
+    public bool? IncludeSoftDeleted { get; init; }
+
     /// <summary>Zero-based page index.</summary>
     public int? Page { get; init; }
 
@@ -139,6 +142,7 @@ public sealed record ListRecordingsParams
         yield return new("DateCreated>", DateCreatedGt);
         yield return new("CallSid", CallSid);
         yield return new("ConferenceSid", ConferenceSid);
+        yield return new("IncludeSoftDeleted", FormHelpers.BoolStr(IncludeSoftDeleted));
         yield return new("Page", Page?.ToString());
         yield return new("PageSize", PageSize?.ToString());
         yield return new("PageToken", PageToken);
@@ -176,6 +180,19 @@ public sealed record ListCallRecordingsParams
         yield return new("Page", Page?.ToString());
         yield return new("PageSize", PageSize?.ToString());
         yield return new("PageToken", PageToken);
+    }
+}
+
+/// <summary>Optional query params for <c>GET /Recordings/{sid}</c>.</summary>
+public sealed record GetRecordingParams
+{
+    /// <summary>Include soft-deleted recordings.</summary>
+    public bool? IncludeSoftDeleted { get; init; }
+
+    /// <summary>Render as a query-parameter sequence.</summary>
+    public IEnumerable<KeyValuePair<string, string?>> ToQuery()
+    {
+        yield return new("IncludeSoftDeleted", FormHelpers.BoolStr(IncludeSoftDeleted));
     }
 }
 

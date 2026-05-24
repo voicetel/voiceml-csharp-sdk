@@ -20,7 +20,7 @@ public sealed record IncomingPhoneNumberCapabilities
     [JsonPropertyName("fax")] public bool Fax { get; init; }
 }
 
-/// <summary>A Twilio-shape IncomingPhoneNumber resource — a DID assigned to the tenant.
+/// <summary>A Twilio-compatible IncomingPhoneNumber resource — a DID assigned to the tenant.
 /// <para>The canonical identifier is <see cref="Sid"/> (<c>PN</c> + 32 hex). <see cref="PhoneNumber"/>
 /// carries the E.164 form. Twilio-compat fields VoiceML doesn't track (SMS, regulatory,
 /// emergency, trunking) emit safe defaults so strict-binding deserializers don't throw.</para></summary>
@@ -161,6 +161,43 @@ public sealed record ListIncomingPhoneNumbersOptions
     public IEnumerable<KeyValuePair<string, string?>> ToQuery()
     {
         yield return new("PhoneNumber", PhoneNumber);
+        yield return new("Page", Page?.ToString());
+        yield return new("PageSize", PageSize?.ToString());
+        yield return new("PageToken", PageToken);
+    }
+}
+
+/// <summary>Query params for type-specific <c>/IncomingPhoneNumbers/{Local,Mobile,TollFree}</c> list endpoints.</summary>
+public sealed record ListTypedIncomingPhoneNumbersOptions
+{
+    /// <summary>Exact-match E.164 filter.</summary>
+    public string? PhoneNumber { get; init; }
+
+    /// <summary>Friendly name filter.</summary>
+    public string? FriendlyName { get; init; }
+
+    /// <summary>Beta filter.</summary>
+    public bool? Beta { get; init; }
+
+    /// <summary>Origin filter.</summary>
+    public string? Origin { get; init; }
+
+    /// <summary>Zero-based page index.</summary>
+    public int? Page { get; init; }
+
+    /// <summary>Page size.</summary>
+    public int? PageSize { get; init; }
+
+    /// <summary>Opaque cursor for the next page.</summary>
+    public string? PageToken { get; init; }
+
+    /// <summary>Render as a query-parameter sequence.</summary>
+    public IEnumerable<KeyValuePair<string, string?>> ToQuery()
+    {
+        yield return new("PhoneNumber", PhoneNumber);
+        yield return new("FriendlyName", FriendlyName);
+        yield return new("Beta", FormHelpers.BoolStr(Beta));
+        yield return new("Origin", Origin);
         yield return new("Page", Page?.ToString());
         yield return new("PageSize", PageSize?.ToString());
         yield return new("PageToken", PageToken);

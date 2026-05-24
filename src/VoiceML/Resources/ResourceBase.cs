@@ -1,7 +1,7 @@
 namespace VoiceML.Resources;
 
 /// <summary>Shared base for resource classes — wraps a <see cref="Transport"/> and renders
-/// URL paths under the canonical Twilio prefix <c>/2010-04-01/Accounts/{AccountSid}/…</c>.</summary>
+/// URL paths under the Twilio-compatible prefix <c>/2010-04-01/Accounts/{AccountSid}/…</c>.</summary>
 public abstract class ResourceBase
 {
     /// <summary>The shared transport for this client.</summary>
