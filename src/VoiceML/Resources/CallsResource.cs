@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using VoiceML.Exceptions;
@@ -28,6 +29,26 @@ public sealed class CallsResource : ResourceBase
             queryParams: p.ToQuery(),
             ct: ct).ConfigureAwait(false);
         return result ?? new CallList();
+    }
+
+    /// <summary>Iterate through all calls across pages, yielding one <see cref="Call"/> at a time.
+    /// Pass an empty <see cref="ListCallsParams"/> for an unfiltered iteration.</summary>
+    public async IAsyncEnumerable<Call> IterateAsync(
+        ListCallsParams? filter = null,
+        int page = 0,
+        int? pageSize = null,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var p = filter ?? new ListCallsParams();
+        while (true)
+        {
+            var chunk = await ListAsync(
+                p with { Page = page, PageSize = pageSize ?? p.PageSize },
+                ct).ConfigureAwait(false);
+            foreach (var item in chunk.Calls) yield return item;
+            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.Calls.Count == 0) yield break;
+            page++;
+        }
     }
 
     /// <summary>Originate a new call.</summary>
@@ -81,6 +102,28 @@ public sealed class CallsResource : ResourceBase
             queryParams: p.ToQuery(),
             ct: ct).ConfigureAwait(false);
         return result ?? new RecordingList();
+    }
+
+    /// <summary>Iterate through all recordings for a call across pages, yielding one
+    /// <see cref="Recording"/> at a time.</summary>
+    public async IAsyncEnumerable<Recording> IterateRecordingsAsync(
+        string callSid,
+        ListRecordingsParams? filter = null,
+        int page = 0,
+        int? pageSize = null,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var p = filter ?? new ListRecordingsParams();
+        while (true)
+        {
+            var chunk = await ListRecordingsAsync(
+                callSid,
+                p with { Page = page, PageSize = pageSize ?? p.PageSize },
+                ct).ConfigureAwait(false);
+            foreach (var item in chunk.Recordings) yield return item;
+            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.Recordings.Count == 0) yield break;
+            page++;
+        }
     }
 
     /// <summary>Start a recording on a live call.</summary>

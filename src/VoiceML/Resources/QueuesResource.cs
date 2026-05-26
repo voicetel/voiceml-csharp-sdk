@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using VoiceML.Exceptions;
@@ -32,6 +34,26 @@ public sealed class QueuesResource : ResourceBase
         return result ?? new QueueList();
     }
 
+    /// <summary>Iterate through all queues across pages, yielding one
+    /// <see cref="Queue"/> at a time.</summary>
+    public async IAsyncEnumerable<Queue> IterateAsync(
+        ListPageParams? filter = null,
+        int page = 0,
+        int? pageSize = null,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var p = filter ?? new ListPageParams();
+        while (true)
+        {
+            var chunk = await ListAsync(
+                p with { Page = page, PageSize = pageSize ?? p.PageSize },
+                ct).ConfigureAwait(false);
+            foreach (var item in chunk.Queues) yield return item;
+            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.Queues.Count == 0) yield break;
+            page++;
+        }
+    }
+
     /// <summary>Fetch a queue by SID.</summary>
     public async Task<Queue> GetAsync(string queueSid, CancellationToken ct = default)
     {
@@ -63,6 +85,28 @@ public sealed class QueuesResource : ResourceBase
         var result = await Transport.SendAsync<QueueMemberList>(
             HttpMethod.Get, Path("Queues", queueSid, "Members"), queryParams: p.ToQuery(), ct: ct).ConfigureAwait(false);
         return result ?? new QueueMemberList();
+    }
+
+    /// <summary>Iterate through all members in a queue across pages, yielding one
+    /// <see cref="QueueMember"/> at a time.</summary>
+    public async IAsyncEnumerable<QueueMember> IterateMembersAsync(
+        string queueSid,
+        ListQueueMembersParams? filter = null,
+        int page = 0,
+        int? pageSize = null,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var p = filter ?? new ListQueueMembersParams();
+        while (true)
+        {
+            var chunk = await ListMembersAsync(
+                queueSid,
+                p with { Page = page, PageSize = pageSize ?? p.PageSize },
+                ct).ConfigureAwait(false);
+            foreach (var item in chunk.QueueMembers) yield return item;
+            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.QueueMembers.Count == 0) yield break;
+            page++;
+        }
     }
 
     /// <summary>Peek at the member at the front of the queue (does not dequeue).</summary>

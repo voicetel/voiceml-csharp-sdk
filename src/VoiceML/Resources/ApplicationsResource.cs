@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using VoiceML.Exceptions;
@@ -30,6 +32,26 @@ public sealed class ApplicationsResource : ResourceBase
         var result = await Transport.SendAsync<ApplicationList>(
             HttpMethod.Get, Path("Applications"), queryParams: p.ToQuery(), ct: ct).ConfigureAwait(false);
         return result ?? new ApplicationList();
+    }
+
+    /// <summary>Iterate through all applications across pages, yielding one
+    /// <see cref="Application"/> at a time.</summary>
+    public async IAsyncEnumerable<Application> IterateAsync(
+        ListApplicationsParams? filter = null,
+        int page = 0,
+        int? pageSize = null,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var p = filter ?? new ListApplicationsParams();
+        while (true)
+        {
+            var chunk = await ListAsync(
+                p with { Page = page, PageSize = pageSize ?? p.PageSize },
+                ct).ConfigureAwait(false);
+            foreach (var item in chunk.Applications) yield return item;
+            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.Applications.Count == 0) yield break;
+            page++;
+        }
     }
 
     /// <summary>Fetch an application by SID.</summary>

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using VoiceML.Exceptions;
@@ -27,6 +28,26 @@ public sealed class RecordingsResource : ResourceBase
             queryParams: p.ToQuery(),
             ct: ct).ConfigureAwait(false);
         return result ?? new RecordingList();
+    }
+
+    /// <summary>Iterate through all recordings across pages, yielding one
+    /// <see cref="Recording"/> at a time.</summary>
+    public async IAsyncEnumerable<Recording> IterateAsync(
+        ListRecordingsParams? filter = null,
+        int page = 0,
+        int? pageSize = null,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var p = filter ?? new ListRecordingsParams();
+        while (true)
+        {
+            var chunk = await ListAsync(
+                p with { Page = page, PageSize = pageSize ?? p.PageSize },
+                ct).ConfigureAwait(false);
+            foreach (var item in chunk.Recordings) yield return item;
+            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.Recordings.Count == 0) yield break;
+            page++;
+        }
     }
 
     /// <summary>Fetch the metadata JSON for a recording.</summary>

@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using VoiceML.Exceptions;
@@ -28,6 +30,26 @@ public sealed class IncomingPhoneNumbersResource : ResourceBase
             queryParams: opts.ToQuery(),
             ct: ct).ConfigureAwait(false);
         return result ?? new IncomingPhoneNumberList();
+    }
+
+    /// <summary>Iterate through all DIDs across pages, yielding one
+    /// <see cref="IncomingPhoneNumber"/> at a time.</summary>
+    public async IAsyncEnumerable<IncomingPhoneNumber> IterateAsync(
+        ListIncomingPhoneNumbersOptions? options = null,
+        int page = 0,
+        int? pageSize = null,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var opts = options ?? new ListIncomingPhoneNumbersOptions();
+        while (true)
+        {
+            var chunk = await ListAsync(
+                opts with { Page = page, PageSize = pageSize ?? opts.PageSize },
+                ct).ConfigureAwait(false);
+            foreach (var item in chunk.IncomingPhoneNumbers) yield return item;
+            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.IncomingPhoneNumbers.Count == 0) yield break;
+            page++;
+        }
     }
 
     /// <summary>Synchronous list wrapper. Blocks; prefer <see cref="ListAsync"/>.</summary>
@@ -90,6 +112,26 @@ public sealed class IncomingPhoneNumbersResource : ResourceBase
     public void Delete(string sid)
         => DeleteAsync(sid).GetAwaiter().GetResult();
 
+    /// <summary>Iterate through all local DIDs across pages, yielding one
+    /// <see cref="IncomingPhoneNumber"/> at a time.</summary>
+    public async IAsyncEnumerable<IncomingPhoneNumber> IterateLocalAsync(
+        ListTypedIncomingPhoneNumbersOptions? options = null,
+        int page = 0,
+        int? pageSize = null,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var opts = options ?? new ListTypedIncomingPhoneNumbersOptions();
+        while (true)
+        {
+            var chunk = await ListLocalAsync(
+                opts with { Page = page, PageSize = pageSize ?? opts.PageSize },
+                ct).ConfigureAwait(false);
+            foreach (var item in chunk.IncomingPhoneNumbers) yield return item;
+            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.IncomingPhoneNumbers.Count == 0) yield break;
+            page++;
+        }
+    }
+
     /// <summary>List local DIDs. GET /IncomingPhoneNumbers/Local.</summary>
     public Task<IncomingPhoneNumberList> ListLocalAsync(
         ListTypedIncomingPhoneNumbersOptions? options = null, CancellationToken ct = default)
@@ -100,6 +142,26 @@ public sealed class IncomingPhoneNumbersResource : ResourceBase
         CreateIncomingPhoneNumberOptions options, CancellationToken ct = default)
         => CreateTypedAsync("Local", options, ct);
 
+    /// <summary>Iterate through all mobile DIDs across pages, yielding one
+    /// <see cref="IncomingPhoneNumber"/> at a time.</summary>
+    public async IAsyncEnumerable<IncomingPhoneNumber> IterateMobileAsync(
+        ListTypedIncomingPhoneNumbersOptions? options = null,
+        int page = 0,
+        int? pageSize = null,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var opts = options ?? new ListTypedIncomingPhoneNumbersOptions();
+        while (true)
+        {
+            var chunk = await ListMobileAsync(
+                opts with { Page = page, PageSize = pageSize ?? opts.PageSize },
+                ct).ConfigureAwait(false);
+            foreach (var item in chunk.IncomingPhoneNumbers) yield return item;
+            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.IncomingPhoneNumbers.Count == 0) yield break;
+            page++;
+        }
+    }
+
     /// <summary>List mobile DIDs. GET /IncomingPhoneNumbers/Mobile.</summary>
     public Task<IncomingPhoneNumberList> ListMobileAsync(
         ListTypedIncomingPhoneNumbersOptions? options = null, CancellationToken ct = default)
@@ -109,6 +171,26 @@ public sealed class IncomingPhoneNumbersResource : ResourceBase
     public Task<IncomingPhoneNumber> CreateMobileAsync(
         CreateIncomingPhoneNumberOptions options, CancellationToken ct = default)
         => CreateTypedAsync("Mobile", options, ct);
+
+    /// <summary>Iterate through all toll-free DIDs across pages, yielding one
+    /// <see cref="IncomingPhoneNumber"/> at a time.</summary>
+    public async IAsyncEnumerable<IncomingPhoneNumber> IterateTollFreeAsync(
+        ListTypedIncomingPhoneNumbersOptions? options = null,
+        int page = 0,
+        int? pageSize = null,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var opts = options ?? new ListTypedIncomingPhoneNumbersOptions();
+        while (true)
+        {
+            var chunk = await ListTollFreeAsync(
+                opts with { Page = page, PageSize = pageSize ?? opts.PageSize },
+                ct).ConfigureAwait(false);
+            foreach (var item in chunk.IncomingPhoneNumbers) yield return item;
+            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.IncomingPhoneNumbers.Count == 0) yield break;
+            page++;
+        }
+    }
 
     /// <summary>List toll-free DIDs. GET /IncomingPhoneNumbers/TollFree.</summary>
     public Task<IncomingPhoneNumberList> ListTollFreeAsync(

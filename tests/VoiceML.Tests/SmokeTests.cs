@@ -702,6 +702,180 @@ public class SmokeTests
     }
 
     // -----------------------------------------------------------------------
+    // Pagination: IterateAsync() — multi-page and single-page edge cases
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public async Task CallsIterateAsync_TwoPages_YieldsAllItems()
+    {
+        var requestCount = 0;
+        var handler = new MockHandler(req =>
+        {
+            requestCount++;
+            var url = req.RequestUri!.ToString();
+            if (!url.Contains("Page=1"))
+            {
+                // Page 0 — return 2 calls + next_page_uri
+                return Reply(HttpStatusCode.OK, $$"""
+                    {"calls":[
+                        {"sid":"CA01","account_sid":"{{Sid}}","status":"completed","direction":"outbound-api","api_version":"2010-04-01","uri":"/x","date_created":"2025","date_updated":"2025"},
+                        {"sid":"CA02","account_sid":"{{Sid}}","status":"completed","direction":"outbound-api","api_version":"2010-04-01","uri":"/x","date_created":"2025","date_updated":"2025"}
+                    ],"page":0,"page_size":2,"next_page_uri":"/2010-04-01/Accounts/{{Sid}}/Calls.json?Page=1&PageSize=2"}
+                    """);
+            }
+            // Page 1 — return 1 call + null next_page_uri
+            return Reply(HttpStatusCode.OK, $$"""
+                {"calls":[
+                    {"sid":"CA03","account_sid":"{{Sid}}","status":"completed","direction":"outbound-api","api_version":"2010-04-01","uri":"/x","date_created":"2025","date_updated":"2025"}
+                ],"page":1,"page_size":2,"next_page_uri":null}
+                """);
+        });
+        using var client = NewClient(handler);
+        var collected = new List<Call>();
+        await foreach (var call in client.Calls.IterateAsync(pageSize: 2))
+        {
+            collected.Add(call);
+        }
+        Assert.Equal(3, collected.Count);
+        Assert.Equal("CA01", collected[0].Sid);
+        Assert.Equal("CA02", collected[1].Sid);
+        Assert.Equal("CA03", collected[2].Sid);
+        Assert.Equal(2, requestCount);
+    }
+
+    [Fact]
+    public async Task ConferencesIterateAsync_TwoPages_YieldsAllItems()
+    {
+        var requestCount = 0;
+        var handler = new MockHandler(req =>
+        {
+            requestCount++;
+            var url = req.RequestUri!.ToString();
+            if (!url.Contains("Page=1"))
+            {
+                return Reply(HttpStatusCode.OK, $$"""
+                    {"conferences":[
+                        {"sid":"CF01","account_sid":"{{Sid}}","friendly_name":"room-1","status":"in-progress","api_version":"2010-04-01","uri":"/x"},
+                        {"sid":"CF02","account_sid":"{{Sid}}","friendly_name":"room-2","status":"completed","api_version":"2010-04-01","uri":"/x"}
+                    ],"page":0,"page_size":2,"next_page_uri":"/2010-04-01/Accounts/{{Sid}}/Conferences.json?Page=1&PageSize=2"}
+                    """);
+            }
+            return Reply(HttpStatusCode.OK, $$"""
+                {"conferences":[
+                    {"sid":"CF03","account_sid":"{{Sid}}","friendly_name":"room-3","status":"completed","api_version":"2010-04-01","uri":"/x"}
+                ],"page":1,"page_size":2,"next_page_uri":null}
+                """);
+        });
+        using var client = NewClient(handler);
+        var collected = new List<Conference>();
+        await foreach (var conf in client.Conferences.IterateAsync(pageSize: 2))
+        {
+            collected.Add(conf);
+        }
+        Assert.Equal(3, collected.Count);
+        Assert.Equal("CF01", collected[0].Sid);
+        Assert.Equal("CF02", collected[1].Sid);
+        Assert.Equal("CF03", collected[2].Sid);
+        Assert.Equal(2, requestCount);
+    }
+
+    [Fact]
+    public async Task RecordingsIterateAsync_TwoPages_YieldsAllItems()
+    {
+        var requestCount = 0;
+        var handler = new MockHandler(req =>
+        {
+            requestCount++;
+            var url = req.RequestUri!.ToString();
+            if (!url.Contains("Page=1"))
+            {
+                return Reply(HttpStatusCode.OK, $$"""
+                    {"recordings":[
+                        {"sid":"RE01","account_sid":"{{Sid}}","call_sid":"{{CallSid}}","status":"completed","uri":"/x"},
+                        {"sid":"RE02","account_sid":"{{Sid}}","call_sid":"{{CallSid}}","status":"completed","uri":"/x"}
+                    ],"page":0,"page_size":2,"next_page_uri":"/2010-04-01/Accounts/{{Sid}}/Recordings.json?Page=1&PageSize=2"}
+                    """);
+            }
+            return Reply(HttpStatusCode.OK, $$"""
+                {"recordings":[
+                    {"sid":"RE03","account_sid":"{{Sid}}","call_sid":"{{CallSid}}","status":"completed","uri":"/x"}
+                ],"page":1,"page_size":2,"next_page_uri":null}
+                """);
+        });
+        using var client = NewClient(handler);
+        var collected = new List<Recording>();
+        await foreach (var rec in client.Recordings.IterateAsync(pageSize: 2))
+        {
+            collected.Add(rec);
+        }
+        Assert.Equal(3, collected.Count);
+        Assert.Equal("RE01", collected[0].Sid);
+        Assert.Equal("RE02", collected[1].Sid);
+        Assert.Equal("RE03", collected[2].Sid);
+        Assert.Equal(2, requestCount);
+    }
+
+    [Fact]
+    public async Task QueuesIterateAsync_TwoPages_YieldsAllItems()
+    {
+        var requestCount = 0;
+        var handler = new MockHandler(req =>
+        {
+            requestCount++;
+            var url = req.RequestUri!.ToString();
+            if (!url.Contains("Page=1"))
+            {
+                return Reply(HttpStatusCode.OK, $$"""
+                    {"queues":[
+                        {"sid":"QU01","account_sid":"{{Sid}}","friendly_name":"support","current_size":5,"max_size":100,"average_wait_time":30,"date_created":"2025","date_updated":"2025","uri":"/x"},
+                        {"sid":"QU02","account_sid":"{{Sid}}","friendly_name":"sales","current_size":2,"max_size":50,"average_wait_time":15,"date_created":"2025","date_updated":"2025","uri":"/x"}
+                    ],"page":0,"page_size":2,"next_page_uri":"/2010-04-01/Accounts/{{Sid}}/Queues.json?Page=1&PageSize=2"}
+                    """);
+            }
+            return Reply(HttpStatusCode.OK, $$"""
+                {"queues":[
+                    {"sid":"QU03","account_sid":"{{Sid}}","friendly_name":"billing","current_size":0,"max_size":25,"average_wait_time":0,"date_created":"2025","date_updated":"2025","uri":"/x"}
+                ],"page":1,"page_size":2,"next_page_uri":null}
+                """);
+        });
+        using var client = NewClient(handler);
+        var collected = new List<Queue>();
+        await foreach (var q in client.Queues.IterateAsync(pageSize: 2))
+        {
+            collected.Add(q);
+        }
+        Assert.Equal(3, collected.Count);
+        Assert.Equal("QU01", collected[0].Sid);
+        Assert.Equal("QU02", collected[1].Sid);
+        Assert.Equal("QU03", collected[2].Sid);
+        Assert.Equal(2, requestCount);
+    }
+
+    [Fact]
+    public async Task CallsIterateAsync_SinglePage_StopsWithoutExtraRequest()
+    {
+        var requestCount = 0;
+        var handler = new MockHandler(req =>
+        {
+            requestCount++;
+            return Reply(HttpStatusCode.OK, $$"""
+                {"calls":[
+                    {"sid":"CA99","account_sid":"{{Sid}}","status":"completed","direction":"inbound","api_version":"2010-04-01","uri":"/x","date_created":"2025","date_updated":"2025"}
+                ],"page":0,"page_size":50,"next_page_uri":null}
+                """);
+        });
+        using var client = NewClient(handler);
+        var collected = new List<Call>();
+        await foreach (var call in client.Calls.IterateAsync())
+        {
+            collected.Add(call);
+        }
+        Assert.Single(collected);
+        Assert.Equal("CA99", collected[0].Sid);
+        Assert.Equal(1, requestCount);
+    }
+
+    // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
 

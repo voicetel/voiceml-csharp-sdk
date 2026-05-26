@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using VoiceML.Exceptions;
@@ -19,6 +21,26 @@ public sealed class ConferencesResource : ResourceBase
         var result = await Transport.SendAsync<ConferenceList>(
             HttpMethod.Get, Path("Conferences"), queryParams: p.ToQuery(), ct: ct).ConfigureAwait(false);
         return result ?? new ConferenceList();
+    }
+
+    /// <summary>Iterate through all conferences across pages, yielding one
+    /// <see cref="Conference"/> at a time.</summary>
+    public async IAsyncEnumerable<Conference> IterateAsync(
+        ListConferencesParams? filter = null,
+        int page = 0,
+        int? pageSize = null,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var p = filter ?? new ListConferencesParams();
+        while (true)
+        {
+            var chunk = await ListAsync(
+                p with { Page = page, PageSize = pageSize ?? p.PageSize },
+                ct).ConfigureAwait(false);
+            foreach (var item in chunk.Conferences) yield return item;
+            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.Conferences.Count == 0) yield break;
+            page++;
+        }
     }
 
     /// <summary>Fetch a single conference by SID.</summary>
@@ -53,6 +75,28 @@ public sealed class ConferencesResource : ResourceBase
             queryParams: p.ToQuery(),
             ct: ct).ConfigureAwait(false);
         return result ?? new ParticipantList();
+    }
+
+    /// <summary>Iterate through all participants in a conference across pages, yielding one
+    /// <see cref="Participant"/> at a time.</summary>
+    public async IAsyncEnumerable<Participant> IterateParticipantsAsync(
+        string conferenceSid,
+        ListParticipantsParams? filter = null,
+        int page = 0,
+        int? pageSize = null,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var p = filter ?? new ListParticipantsParams();
+        while (true)
+        {
+            var chunk = await ListParticipantsAsync(
+                conferenceSid,
+                p with { Page = page, PageSize = pageSize ?? p.PageSize },
+                ct).ConfigureAwait(false);
+            foreach (var item in chunk.Participants) yield return item;
+            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.Participants.Count == 0) yield break;
+            page++;
+        }
     }
 
     /// <summary>Fetch a single participant.</summary>
@@ -108,6 +152,28 @@ public sealed class ConferencesResource : ResourceBase
             queryParams: p.ToQuery(),
             ct: ct).ConfigureAwait(false);
         return result ?? new RecordingList();
+    }
+
+    /// <summary>Iterate through all recordings on a conference across pages, yielding one
+    /// <see cref="Recording"/> at a time.</summary>
+    public async IAsyncEnumerable<Recording> IterateRecordingsAsync(
+        string conferenceSid,
+        ListCallRecordingsParams? filter = null,
+        int page = 0,
+        int? pageSize = null,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var p = filter ?? new ListCallRecordingsParams();
+        while (true)
+        {
+            var chunk = await ListRecordingsAsync(
+                conferenceSid,
+                p with { Page = page, PageSize = pageSize ?? p.PageSize },
+                ct).ConfigureAwait(false);
+            foreach (var item in chunk.Recordings) yield return item;
+            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.Recordings.Count == 0) yield break;
+            page++;
+        }
     }
 
     /// <summary>Fetch metadata for a conference-scoped recording.</summary>
