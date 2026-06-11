@@ -650,9 +650,9 @@ public class SmokeTests
     }
 
     [Fact]
-    public void Version_Is066()
+    public void Version_Is070()
     {
-        Assert.Equal("0.6.6", VoiceML.VoiceMLVersion.Version);
+        Assert.Equal("0.7.0", VoiceML.VoiceMLVersion.Version);
     }
 
     [Fact]

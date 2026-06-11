@@ -41,6 +41,9 @@ public sealed class VoiceMLClient : IDisposable
     /// <summary>Account-scoped notification compat stubs.</summary>
     public NotificationsResource Notifications { get; }
 
+    /// <summary>Outbound SMS via the Twilio-compatible <c>/Messages</c> surface.</summary>
+    public MessagesResource Messages { get; }
+
     /// <summary>Diagnostic endpoints: <c>/health</c> and <c>/openapi.json</c>.</summary>
     public DiagnosticsResource Diagnostics { get; }
 
@@ -63,6 +66,7 @@ public sealed class VoiceMLClient : IDisposable
         Recordings = new RecordingsResource(_transport);
         IncomingPhoneNumbers = new IncomingPhoneNumbersResource(_transport);
         Notifications = new NotificationsResource(_transport);
+        Messages = new MessagesResource(_transport);
         Diagnostics = new DiagnosticsResource(_transport);
     }
 

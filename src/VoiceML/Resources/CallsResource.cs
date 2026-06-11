@@ -357,6 +357,38 @@ public sealed class CallsResource : ResourceBase
     }
 
     // -------------------------------------------------------------------
+    // /Calls/{sid}/Payments — REST companion to the <Pay> TwiML verb
+    // -------------------------------------------------------------------
+
+    /// <summary>Start a <c>&lt;Pay&gt;</c> session on the live call. Returns 201 with the
+    /// freshly-minted <see cref="CallPayment"/>. Returns 403 when the tenant is not
+    /// <c>pay_enabled</c> or has no <c>stripe_secret_key</c> configured.</summary>
+    public async Task<CallPayment> StartPaymentAsync(
+        string callSid, StartPaymentRequest request, CancellationToken ct = default)
+    {
+        var result = await Transport.SendAsync<CallPayment>(
+            HttpMethod.Post,
+            Path("Calls", callSid, "Payments"),
+            formBody: request.ToForm(),
+            ct: ct).ConfigureAwait(false);
+        return result ?? throw new ApiException("empty body on POST /Calls/{sid}/Payments", 200);
+    }
+
+    /// <summary>Advance or terminate an existing Pay session. <c>Status=complete</c> captures
+    /// the collected fields; <c>Status=cancel</c> aborts the session. <c>Capture=…</c> tells
+    /// the runtime which input the caller is about to type next.</summary>
+    public async Task<CallPayment> UpdatePaymentAsync(
+        string callSid, string paymentSid, UpdatePaymentRequest request, CancellationToken ct = default)
+    {
+        var result = await Transport.SendAsync<CallPayment>(
+            HttpMethod.Post,
+            Path("Calls", callSid, "Payments", paymentSid),
+            formBody: request.ToForm(),
+            ct: ct).ConfigureAwait(false);
+        return result ?? throw new ApiException("empty body on POST /Calls/{sid}/Payments/{psid}", 200);
+    }
+
+    // -------------------------------------------------------------------
     // /Calls/{sid}/UserDefinedMessages — server returns 501 (compat stub)
     // -------------------------------------------------------------------
 
