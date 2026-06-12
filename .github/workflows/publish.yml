@@ -1,0 +1,49 @@
+name: Publish to NuGet
+
+# Publishes the VoiceML NuGet package to nuget.org on every v* tag push.
+# Uses an API key stored as the NUGET_API_KEY secret at
+# https://github.com/voicetel/voiceml-csharp-sdk/settings/secrets/actions
+#
+# To create the key:
+#   1. Sign in at nuget.org as the publisher account.
+#   2. Account → API Keys → Create.
+#   3. Scope it to the VoiceML package (or all package IDs you own).
+#   4. Copy the key into the NUGET_API_KEY repo secret.
+#
+# `--skip-duplicate` makes the publish idempotent — re-running the
+# workflow on an existing tag is a no-op rather than a failure.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish to NuGet
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build (Release)
+        run: dotnet build -c Release --no-restore
+
+      - name: Pack (nupkg + snupkg)
+        run: dotnet pack -c Release --no-build -o packages
+
+      - name: List packed artifacts
+        run: ls -la packages/
+
+      - name: Publish to nuget.org
+        run: dotnet nuget push 'packages/*.nupkg' --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
