@@ -44,6 +44,13 @@ public sealed class VoiceMLClient : IDisposable
     /// <summary>Outbound SMS via the Twilio-compatible <c>/Messages</c> surface.</summary>
     public MessagesResource Messages { get; }
 
+    /// <summary>SIP Trunking — Domains, CredentialLists, IpAccessControlLists, plus the four
+    /// domain mapping namespaces (historical + Auth/Calls + Auth/Registrations).</summary>
+    public SipResource Sip { get; }
+
+    /// <summary>Twilio routes/v2 Inbound Processing Region API.</summary>
+    public RoutesV2Resource RoutesV2 { get; }
+
     /// <summary>Diagnostic endpoints: <c>/health</c> and <c>/openapi.json</c>.</summary>
     public DiagnosticsResource Diagnostics { get; }
 
@@ -67,6 +74,8 @@ public sealed class VoiceMLClient : IDisposable
         IncomingPhoneNumbers = new IncomingPhoneNumbersResource(_transport);
         Notifications = new NotificationsResource(_transport);
         Messages = new MessagesResource(_transport);
+        Sip = new SipResource(_transport);
+        RoutesV2 = new RoutesV2Resource(_transport);
         Diagnostics = new DiagnosticsResource(_transport);
     }
 

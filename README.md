@@ -2,10 +2,10 @@
 
 The official C# / .NET client for the [VoiceML REST API](https://voicetel.com/docs/api/v0.7/voiceml/) — Twilio-compatible outbound voice and answering-machine-detection from VoiceTel, with strongly-typed, `async`/`await`-friendly .NET.
 
-![Version](https://img.shields.io/badge/version-0.7.1-blue)
+![Version](https://img.shields.io/badge/version-0.8.1-blue)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
 ![License](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-green)
-![Tests](https://img.shields.io/badge/tests-55%20xunit-brightgreen)
+![Tests](https://img.shields.io/badge/tests-70%20xunit-brightgreen)
 ![Typed](https://img.shields.io/badge/typed-nullable%20refs-blue)
 
 ## 📚 Table of Contents
@@ -54,10 +54,12 @@ The official C# / .NET client for the [VoiceML REST API](https://voicetel.com/do
 - **Messages** — create, fetch, list (To/From/DateSent filters + pagination), update (Body redaction; `Status=canceled`), delete.
 - **IncomingPhoneNumbers** — list (with `PhoneNumber` exact-match lookup), create (claim/rebind), fetch, update voice routing, release.
 - **Notifications** — fetch, list.
+- **SIP** — SIP Trunking: Domains (CRUD), CredentialLists + Credentials (CRUD), IpAccessControlLists + IpAddresses (CRUD), Domain↔ACL/CredentialList mappings (historical, Auth/Calls, Auth/Registrations namespaces).
+- **Routes V2** — Twilio Inbound Processing Region API: `client.RoutesV2.SipDomains.GetAsync(name)` / `UpdateAsync(name, req)`.
 - **Diagnostics** — `/health` deep probe, `/openapi.json`.
 
 ### 🧪 Tested
-- **55 xUnit tests** — conformance, smoke, and Messages/Payments suites — exercising every resource and error path with mocked `HttpMessageHandler` (no network in unit tests).
+- **70 xUnit tests** — conformance, smoke, Messages/Payments, SIP Trunking, and Routes V2 suites — exercising every resource and error path with mocked `HttpMessageHandler` (no network in unit tests).
 - **`dotnet build` clean** with `TreatWarningsAsErrors=true` on `net8.0`.
 
 ### 📦 Clean Distribution
@@ -68,7 +70,7 @@ The official C# / .NET client for the [VoiceML REST API](https://voicetel.com/do
 ## 🚀 Installation
 
 ```bash
-dotnet add package VoiceML --version 0.7.1
+dotnet add package VoiceML --version 0.8.1
 ```
 
 Or `<PackageReference>` it directly:
