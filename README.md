@@ -1,6 +1,6 @@
 # 📞 VoiceML .NET SDK
 
-The official C# / .NET client for the [VoiceML REST API](https://voicetel.com/docs/api/v0.7/voiceml/) — Twilio-compatible outbound voice and answering-machine-detection from VoiceTel, with strongly-typed, `async`/`await`-friendly .NET.
+The official C# / .NET client for the [VoiceML REST API](https://voicetel.com/docs/api/v0.8/voiceml/) — Twilio-compatible outbound voice and answering-machine-detection from VoiceTel, with strongly-typed, `async`/`await`-friendly .NET.
 
 ![Version](https://img.shields.io/badge/version-0.8.1-blue)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
@@ -76,7 +76,7 @@ dotnet add package VoiceML --version 0.8.1
 Or `<PackageReference>` it directly:
 
 ```xml
-<PackageReference Include="VoiceML" Version="0.7.1" />
+<PackageReference Include="VoiceML" Version="0.8.1" />
 ```
 
 Targets **.NET 8.0**.
@@ -124,7 +124,7 @@ using var client = new VoiceMLClient(new ClientOptions
 var health = await client.Diagnostics.HealthAsync();
 ```
 
-> Don't have credentials yet? See **[voicetel.com/docs/api/v0.7/voiceml/](https://voicetel.com/docs/api/v0.7/voiceml/)** for issuance and rotation.
+> Don't have credentials yet? See **[voicetel.com/docs/api/v0.8/voiceml/](https://voicetel.com/docs/api/v0.8/voiceml/)** for issuance and rotation.
 
 `ClientOptions` is an immutable `record`:
 
@@ -326,7 +326,7 @@ dotnet pack -c Release
 
 ## 📖 API Documentation
 
-- **Reference docs:** [voicetel.com/docs/api/v0.7/voiceml/](https://voicetel.com/docs/api/v0.7/voiceml/)
+- **Reference docs:** [voicetel.com/docs/api/v0.8/voiceml/](https://voicetel.com/docs/api/v0.8/voiceml/)
 - **Validator:** [voicetel.com/voiceml/validator/](https://voicetel.com/voiceml/validator/)
 - **SDK catalogue:** [voicetel.com/docs/voiceml-sdks/](https://voicetel.com/docs/voiceml-sdks/)
 - **Type definitions:** see the `VoiceML.Models` namespace — every wire shape has a record / class.
