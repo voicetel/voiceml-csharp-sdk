@@ -136,6 +136,17 @@ public sealed record SipIpAccessControlListMappingList : Page
     [JsonPropertyName("ip_access_control_list_mappings")] public List<SipDomainMapping> IpAccessControlListMappings { get; init; } = new();
 }
 
+/// <summary>List envelope used by every <c>/SIP/Domains/{Sid}/Auth/{Calls|Registrations}/{Credential|IpAccessControl}ListMappings</c>
+/// endpoint. The Auth sub-namespaces share a single Twilio-side shape: the items array
+/// key is <c>contents</c>, regardless of which mapping kind the URL selects. The
+/// per-item shape is the same <see cref="SipDomainMapping"/> as the legacy non-Auth
+/// mapping endpoints.</summary>
+public sealed record SipAuthMappingList : Page
+{
+    /// <summary>The page of mapping resources. Wire name: <c>contents</c>.</summary>
+    [JsonPropertyName("contents")] public List<SipDomainMapping> Contents { get; init; } = new();
+}
+
 // ===========================================================================
 // Request bodies (form-encoded)
 // ===========================================================================
@@ -331,6 +342,37 @@ public sealed record RoutesV2SipDomain
 
 /// <summary>Body for <c>POST /v2/SipDomains/{SipDomain}</c>. All fields optional.</summary>
 public sealed record UpdateRoutesV2SipDomainRequest : IFormSerializable
+{
+    public string? VoiceRegion { get; init; }
+    public string? FriendlyName { get; init; }
+
+    public IEnumerable<KeyValuePair<string, string?>> ToForm()
+    {
+        yield return new("VoiceRegion", VoiceRegion);
+        yield return new("FriendlyName", FriendlyName);
+    }
+}
+
+// ===========================================================================
+// Routes V2 — /v2/PhoneNumbers/{PhoneNumber} (Inbound Processing Region)
+// ===========================================================================
+
+/// <summary>Phone-number Inbound Processing Region binding. Twilio's routes/v2
+/// surface. SID is <c>QQ…</c>. Keyed by E.164 phone number (or its <c>PN</c> sid).</summary>
+public sealed record RoutesV2PhoneNumber
+{
+    [JsonPropertyName("phone_number")] public string? PhoneNumber { get; init; }
+    [JsonPropertyName("url")] public string? Url { get; init; }
+    [JsonPropertyName("sid")] public string? Sid { get; init; }
+    [JsonPropertyName("account_sid")] public string? AccountSid { get; init; }
+    [JsonPropertyName("friendly_name")] public string? FriendlyName { get; init; }
+    [JsonPropertyName("voice_region")] public string? VoiceRegion { get; init; }
+    [JsonPropertyName("date_created")] public string? DateCreated { get; init; }
+    [JsonPropertyName("date_updated")] public string? DateUpdated { get; init; }
+}
+
+/// <summary>Body for <c>POST /v2/PhoneNumbers/{PhoneNumber}</c>. All fields optional.</summary>
+public sealed record UpdateRoutesV2PhoneNumberRequest : IFormSerializable
 {
     public string? VoiceRegion { get; init; }
     public string? FriendlyName { get; init; }

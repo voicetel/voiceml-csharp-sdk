@@ -2,7 +2,7 @@
 
 The official C# / .NET client for the [VoiceML REST API](https://voicetel.com/docs/api/v0.8/voiceml/) — Twilio-compatible outbound voice and answering-machine-detection from VoiceTel, with strongly-typed, `async`/`await`-friendly .NET.
 
-![Version](https://img.shields.io/badge/version-0.8.1-blue)
+![Version](https://img.shields.io/badge/version-0.9.1-blue)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
 ![License](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-green)
 ![Tests](https://img.shields.io/badge/tests-70%20xunit-brightgreen)
@@ -70,13 +70,13 @@ The official C# / .NET client for the [VoiceML REST API](https://voicetel.com/do
 ## 🚀 Installation
 
 ```bash
-dotnet add package VoiceML --version 0.8.1
+dotnet add package VoiceML --version 0.9.1
 ```
 
 Or `<PackageReference>` it directly:
 
 ```xml
-<PackageReference Include="VoiceML" Version="0.8.1" />
+<PackageReference Include="VoiceML" Version="0.9.1" />
 ```
 
 Targets **.NET 8.0**.

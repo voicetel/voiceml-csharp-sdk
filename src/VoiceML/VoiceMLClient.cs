@@ -48,8 +48,22 @@ public sealed class VoiceMLClient : IDisposable
     /// domain mapping namespaces (historical + Auth/Calls + Auth/Registrations).</summary>
     public SipResource Sip { get; }
 
-    /// <summary>Twilio routes/v2 Inbound Processing Region API.</summary>
+    /// <summary>Twilio routes/v2 Inbound Processing Region API (SIP domains + phone numbers).</summary>
     public RoutesV2Resource RoutesV2 { get; }
+
+    /// <summary>Twilio Voice v1 — BYOC trunks, connection policies + targets, IpRecords,
+    /// SourceIpMappings, and DialingPermissions Settings.</summary>
+    public VoiceV1Resource VoiceV1 { get; }
+
+    /// <summary>Twilio Conversations v1 — Conversations, Messages, Participants, Webhooks,
+    /// Roles, Users, Credentials, Configuration (+ Webhooks, Addresses), ParticipantConversations,
+    /// ConversationWithParticipants, Services.</summary>
+    public ConversationsV1Resource ConversationsV1 { get; }
+
+    /// <summary>Twilio-compatible Assistants v1 — Assistants, Tools, Knowledge (+ Status,
+    /// Chunks), Sessions (+ Messages), Policies, plus per-Assistant attach/detach scopes
+    /// for Tools and Knowledge and the send-message endpoint.</summary>
+    public AssistantsV1Resource AssistantsV1 { get; }
 
     /// <summary>Diagnostic endpoints: <c>/health</c> and <c>/openapi.json</c>.</summary>
     public DiagnosticsResource Diagnostics { get; }
@@ -76,6 +90,9 @@ public sealed class VoiceMLClient : IDisposable
         Messages = new MessagesResource(_transport);
         Sip = new SipResource(_transport);
         RoutesV2 = new RoutesV2Resource(_transport);
+        VoiceV1 = new VoiceV1Resource(_transport);
+        ConversationsV1 = new ConversationsV1Resource(_transport);
+        AssistantsV1 = new AssistantsV1Resource(_transport);
         Diagnostics = new DiagnosticsResource(_transport);
     }
 

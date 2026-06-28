@@ -271,6 +271,236 @@ public class ConformanceTests
                 Assert.False(string.IsNullOrEmpty(v.CallSid), "CallTranscription.call_sid");
                 break;
             }
+            // ----------------------------------------------------------------
+            // Accounts / Balance
+            // ----------------------------------------------------------------
+            case "FetchAccount":
+            case "UpdateAccount":
+            {
+                var v = JsonSerializer.Deserialize<Account>(body, JsonOpts)!;
+                // Account responses use sid (the AC… itself) as the identity field.
+                // There is no separate account_sid on the account resource.
+                Assert.False(string.IsNullOrEmpty(v.Sid), "Account.sid");
+                break;
+            }
+            case "FetchBalance":
+            {
+                var v = JsonSerializer.Deserialize<Balance>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.AccountSid), "Balance.account_sid");
+                break;
+            }
+            // ----------------------------------------------------------------
+            // OutgoingCallerIds + Validation
+            // ----------------------------------------------------------------
+            case "FetchOutgoingCallerId":
+            case "UpdateOutgoingCallerId":
+            {
+                var v = JsonSerializer.Deserialize<OutgoingCallerId>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Sid), "OutgoingCallerId.sid");
+                Assert.False(string.IsNullOrEmpty(v.AccountSid), "OutgoingCallerId.account_sid");
+                break;
+            }
+            case "ListOutgoingCallerId":
+            {
+                var v = JsonSerializer.Deserialize<OutgoingCallerIdList>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Uri), "OutgoingCallerIdList.uri");
+                break;
+            }
+            case "CreateValidationRequest":
+            {
+                var v = JsonSerializer.Deserialize<ValidationRequest>(body, JsonOpts)!;
+                // ValidationRequest is a synthetic response with no sid — Twilio
+                // dispatches a call (call_sid) and returns the read-back code.
+                Assert.False(string.IsNullOrEmpty(v.AccountSid), "ValidationRequest.account_sid");
+                break;
+            }
+            // ----------------------------------------------------------------
+            // Recording-derived (offline) Transcriptions — distinct from the
+            // realtime CallTranscription handled above.
+            // ----------------------------------------------------------------
+            case "FetchTranscription":
+            case "FetchRecordingTranscription":
+            {
+                var v = JsonSerializer.Deserialize<RecordingTranscription>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Sid), "RecordingTranscription.sid");
+                Assert.False(string.IsNullOrEmpty(v.AccountSid), "RecordingTranscription.account_sid");
+                break;
+            }
+            case "ListTranscription":
+            case "ListRecordingTranscription":
+            {
+                var v = JsonSerializer.Deserialize<RecordingTranscriptionList>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Uri), "RecordingTranscriptionList.uri");
+                break;
+            }
+            // ----------------------------------------------------------------
+            // Message Media
+            // ----------------------------------------------------------------
+            case "FetchMedia":
+            {
+                var v = JsonSerializer.Deserialize<Media>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Sid), "Media.sid");
+                Assert.False(string.IsNullOrEmpty(v.AccountSid), "Media.account_sid");
+                break;
+            }
+            case "ListMedia":
+            {
+                var v = JsonSerializer.Deserialize<MediaList>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Uri), "MediaList.uri");
+                break;
+            }
+            // ----------------------------------------------------------------
+            // Payments (Pay verb REST companion)
+            // ----------------------------------------------------------------
+            case "CreatePayments":
+            case "UpdatePayments":
+            {
+                var v = JsonSerializer.Deserialize<CallPayment>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Sid), "CallPayment.sid");
+                Assert.False(string.IsNullOrEmpty(v.AccountSid), "CallPayment.account_sid");
+                Assert.False(string.IsNullOrEmpty(v.CallSid), "CallPayment.call_sid");
+                break;
+            }
+            // ----------------------------------------------------------------
+            // SIP Domains
+            // ----------------------------------------------------------------
+            case "CreateSipDomain":
+            case "FetchSipDomain":
+            case "UpdateSipDomain":
+            {
+                var v = JsonSerializer.Deserialize<SipDomain>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Sid), "SipDomain.sid");
+                Assert.False(string.IsNullOrEmpty(v.AccountSid), "SipDomain.account_sid");
+                break;
+            }
+            case "ListSipDomain":
+            {
+                var v = JsonSerializer.Deserialize<SipDomainList>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Uri), "SipDomainList.uri");
+                break;
+            }
+            // ----------------------------------------------------------------
+            // SIP CredentialLists
+            // ----------------------------------------------------------------
+            case "CreateSipCredentialList":
+            case "FetchSipCredentialList":
+            case "UpdateSipCredentialList":
+            {
+                var v = JsonSerializer.Deserialize<SipCredentialList>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Sid), "SipCredentialList.sid");
+                Assert.False(string.IsNullOrEmpty(v.AccountSid), "SipCredentialList.account_sid");
+                break;
+            }
+            case "ListSipCredentialList":
+            {
+                var v = JsonSerializer.Deserialize<SipCredentialListList>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Uri), "SipCredentialListList.uri");
+                break;
+            }
+            // ----------------------------------------------------------------
+            // SIP Credentials (the individual username/password rows)
+            // ----------------------------------------------------------------
+            case "CreateSipCredential":
+            case "FetchSipCredential":
+            case "UpdateSipCredential":
+            {
+                var v = JsonSerializer.Deserialize<SipCredential>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Sid), "SipCredential.sid");
+                Assert.False(string.IsNullOrEmpty(v.AccountSid), "SipCredential.account_sid");
+                break;
+            }
+            case "ListSipCredential":
+            {
+                var v = JsonSerializer.Deserialize<SipCredentialListPage>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Uri), "SipCredentialListPage.uri");
+                break;
+            }
+            // ----------------------------------------------------------------
+            // SIP IpAccessControlLists
+            // ----------------------------------------------------------------
+            case "CreateSipIpAccessControlList":
+            case "FetchSipIpAccessControlList":
+            case "UpdateSipIpAccessControlList":
+            {
+                var v = JsonSerializer.Deserialize<SipIpAccessControlList>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Sid), "SipIpAccessControlList.sid");
+                Assert.False(string.IsNullOrEmpty(v.AccountSid), "SipIpAccessControlList.account_sid");
+                break;
+            }
+            case "ListSipIpAccessControlList":
+            {
+                var v = JsonSerializer.Deserialize<SipIpAccessControlListList>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Uri), "SipIpAccessControlListList.uri");
+                break;
+            }
+            // ----------------------------------------------------------------
+            // SIP IpAddresses (the individual CIDR rows)
+            // ----------------------------------------------------------------
+            case "CreateSipIpAddress":
+            case "FetchSipIpAddress":
+            case "UpdateSipIpAddress":
+            {
+                var v = JsonSerializer.Deserialize<SipIpAddress>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Sid), "SipIpAddress.sid");
+                Assert.False(string.IsNullOrEmpty(v.AccountSid), "SipIpAddress.account_sid");
+                break;
+            }
+            case "ListSipIpAddress":
+            {
+                var v = JsonSerializer.Deserialize<SipIpAddressList>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Uri), "SipIpAddressList.uri");
+                break;
+            }
+            // ----------------------------------------------------------------
+            // SIP Domain Mappings (legacy non-Auth namespace)
+            // ----------------------------------------------------------------
+            case "CreateSipCredentialListMapping":
+            case "FetchSipCredentialListMapping":
+            case "CreateSipIpAccessControlListMapping":
+            case "FetchSipIpAccessControlListMapping":
+            {
+                var v = JsonSerializer.Deserialize<SipDomainMapping>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Sid), "SipDomainMapping.sid");
+                Assert.False(string.IsNullOrEmpty(v.AccountSid), "SipDomainMapping.account_sid");
+                break;
+            }
+            case "ListSipCredentialListMapping":
+            {
+                var v = JsonSerializer.Deserialize<SipCredentialListMappingList>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Uri), "SipCredentialListMappingList.uri");
+                break;
+            }
+            case "ListSipIpAccessControlListMapping":
+            {
+                var v = JsonSerializer.Deserialize<SipIpAccessControlListMappingList>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Uri), "SipIpAccessControlListMappingList.uri");
+                break;
+            }
+            // ----------------------------------------------------------------
+            // SIP Auth Mappings (Calls + Registrations × Credential/IpAcl).
+            // Items share the SipDomainMapping shape, list envelope uses the
+            // common "contents" array key.
+            // ----------------------------------------------------------------
+            case "CreateSipAuthCallsCredentialListMapping":
+            case "FetchSipAuthCallsCredentialListMapping":
+            case "CreateSipAuthCallsIpAccessControlListMapping":
+            case "FetchSipAuthCallsIpAccessControlListMapping":
+            case "CreateSipAuthRegistrationsCredentialListMapping":
+            case "FetchSipAuthRegistrationsCredentialListMapping":
+            {
+                var v = JsonSerializer.Deserialize<SipDomainMapping>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Sid), "SipDomainMapping.sid");
+                Assert.False(string.IsNullOrEmpty(v.AccountSid), "SipDomainMapping.account_sid");
+                break;
+            }
+            case "ListSipAuthCallsCredentialListMapping":
+            case "ListSipAuthCallsIpAccessControlListMapping":
+            case "ListSipAuthRegistrationsCredentialListMapping":
+            {
+                var v = JsonSerializer.Deserialize<SipAuthMappingList>(body, JsonOpts)!;
+                Assert.False(string.IsNullOrEmpty(v.Uri), "SipAuthMappingList.uri");
+                break;
+            }
             default:
                 throw new InvalidOperationException(
                     $"conformance harness: no mapping for operation_id={opId} (fixture={fixturePath}). " +
