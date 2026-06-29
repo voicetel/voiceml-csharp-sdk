@@ -1,17 +1,17 @@
 name: Publish to NuGet
 
 # Publishes the VoiceML NuGet package to nuget.org on every v* tag push.
-# Uses an API key stored as the NUGET_API_KEY secret at
-# https://github.com/voicetel/voiceml-csharp-sdk/settings/secrets/actions
+# Uses OIDC trusted publishing — no long-lived API key stored as a secret.
 #
-# To create the key:
-#   1. Sign in at nuget.org as the publisher account.
-#   2. Account → API Keys → Create.
-#   3. Scope it to the VoiceML package (or all package IDs you own).
-#   4. Copy the key into the NUGET_API_KEY repo secret.
+# One-time setup at https://www.nuget.org/account/trusted-publishing :
+#   Repository Owner: voicetel
+#   Repository:       voiceml-csharp-sdk
+#   Workflow File:    publish.yml
+#   Environment:      (leave blank)
+#   Package Owner:    <nuget.org username>
 #
-# `--skip-duplicate` makes the publish idempotent — re-running the
-# workflow on an existing tag is a no-op rather than a failure.
+# `NuGet/login@v1` trades the GitHub OIDC token for a 1-hour API key.
+# `--skip-duplicate` keeps the publish idempotent.
 
 on:
   push:
@@ -20,6 +20,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write   # required for OIDC trusted publishing
 
 jobs:
   publish:
@@ -45,5 +46,13 @@ jobs:
       - name: List packed artifacts
         run: ls -la packages/
 
+      - name: Authenticate to nuget.org via OIDC
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: voicetel
+
       - name: Publish to nuget.org
-        run: dotnet nuget push 'packages/*.nupkg' --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        env:
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push 'packages/*.nupkg' --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
