@@ -73,7 +73,7 @@ public class V090Tests
         Assert.Equal(convSid, c.Sid);
         Assert.Equal("active", c.State);
         Assert.NotNull(captured);
-        Assert.Equal("https://voiceml.voicetel.com/v1/Conversations", captured!.ToString());
+        Assert.Equal("https://conversations.voicetel.com/v1/Conversations", captured!.ToString());
         Assert.DoesNotContain(AccSid, captured.ToString());
     }
 
@@ -84,7 +84,7 @@ public class V090Tests
         var handler = new MockHandler(req =>
         {
             Assert.Equal(HttpMethod.Get, req.Method);
-            Assert.Equal("https://voiceml.voicetel.com/v1/Conversations?PageSize=25", req.RequestUri!.ToString());
+            Assert.Equal("https://conversations.voicetel.com/v1/Conversations?PageSize=25", req.RequestUri!.ToString());
             var body = "{\"conversations\":[" + ConversationJson(convSid, state: "active") + "]," +
                        "\"meta\":{\"page\":0,\"page_size\":25,\"first_page_url\":\"https://x/v1/Conversations?PageSize=25\",\"key\":\"conversations\"}}";
             return Reply(HttpStatusCode.OK, body);
@@ -106,7 +106,7 @@ public class V090Tests
         var handler = new MockHandler(req =>
         {
             call++;
-            Assert.Equal($"https://voiceml.voicetel.com/v1/Conversations/{convSid}", req.RequestUri!.ToString());
+            Assert.Equal($"https://conversations.voicetel.com/v1/Conversations/{convSid}", req.RequestUri!.ToString());
             return call switch
             {
                 1 => Reply(HttpStatusCode.OK, ConversationJson(convSid, state: "active")),
@@ -133,7 +133,7 @@ public class V090Tests
         var handler = new MockHandler(req =>
         {
             Assert.Equal(HttpMethod.Post, req.Method);
-            Assert.Equal($"https://voiceml.voicetel.com/v1/Conversations/{convSid}/Messages", req.RequestUri!.ToString());
+            Assert.Equal($"https://conversations.voicetel.com/v1/Conversations/{convSid}/Messages", req.RequestUri!.ToString());
             var form = ParseForm(req.Content!.ReadAsStringAsync().Result);
             Assert.Equal("alice", form["Author"]);
             Assert.Equal("hello", form["Body"]);
@@ -155,7 +155,7 @@ public class V090Tests
         {
             Assert.Equal(HttpMethod.Get, req.Method);
             Assert.Equal(
-                $"https://voiceml.voicetel.com/v1/Conversations/{convSid}/Messages/{msgSid}/Receipts",
+                $"https://conversations.voicetel.com/v1/Conversations/{convSid}/Messages/{msgSid}/Receipts",
                 req.RequestUri!.ToString());
             return Reply(HttpStatusCode.OK,
                 "{\"delivery_receipts\":[], \"meta\":{\"page\":0,\"page_size\":50,\"key\":\"delivery_receipts\"}}");
@@ -174,7 +174,7 @@ public class V090Tests
         var handler = new MockHandler(req =>
         {
             Assert.Equal(HttpMethod.Post, req.Method);
-            Assert.Equal($"https://voiceml.voicetel.com/v1/Conversations/{convSid}/Participants", req.RequestUri!.ToString());
+            Assert.Equal($"https://conversations.voicetel.com/v1/Conversations/{convSid}/Participants", req.RequestUri!.ToString());
             var form = ParseForm(req.Content!.ReadAsStringAsync().Result);
             Assert.Equal("+15551112222", form["MessagingBinding.Address"]);
             Assert.Equal("+15553334444", form["MessagingBinding.ProxyAddress"]);
@@ -198,7 +198,7 @@ public class V090Tests
         const string whSid = "WH00000000000000000000000000000001";
         var handler = new MockHandler(req =>
         {
-            Assert.Equal($"https://voiceml.voicetel.com/v1/Conversations/{convSid}/Webhooks", req.RequestUri!.ToString());
+            Assert.Equal($"https://conversations.voicetel.com/v1/Conversations/{convSid}/Webhooks", req.RequestUri!.ToString());
             var form = ParseForm(req.Content!.ReadAsStringAsync().Result);
             Assert.Equal("webhook", form["Target"]);
             Assert.Equal("https://hooks.example.com/c", form["Configuration.Url"]);
@@ -223,7 +223,7 @@ public class V090Tests
         const string roleSid = "RL00000000000000000000000000000001";
         var handler = new MockHandler(req =>
         {
-            Assert.Equal("https://voiceml.voicetel.com/v1/Roles", req.RequestUri!.ToString());
+            Assert.Equal("https://conversations.voicetel.com/v1/Roles", req.RequestUri!.ToString());
             var raw = req.Content!.ReadAsStringAsync().Result;
             var perms = ExtractRepeated(raw, "Permission");
             Assert.Equal(2, perms.Count);
@@ -249,7 +249,7 @@ public class V090Tests
         const string userSid = "US00000000000000000000000000000001";
         var handler = new MockHandler(req =>
         {
-            Assert.Equal($"https://voiceml.voicetel.com/v1/Users/{userSid}/Conversations", req.RequestUri!.ToString());
+            Assert.Equal($"https://conversations.voicetel.com/v1/Users/{userSid}/Conversations", req.RequestUri!.ToString());
             return Reply(HttpStatusCode.OK,
                 "{\"conversations\":[], \"meta\":{\"page\":0,\"page_size\":50,\"key\":\"conversations\"}}");
         });
@@ -287,10 +287,10 @@ public class V090Tests
         var handler = new MockHandler(req =>
         {
             call++;
-            Assert.Equal("https://voiceml.voicetel.com/v1/Configuration", req.RequestUri!.ToString());
+            Assert.Equal("https://conversations.voicetel.com/v1/Configuration", req.RequestUri!.ToString());
             return Reply(HttpStatusCode.OK,
                 "{\"account_sid\":\"" + AccSid + "\"," +
-                "\"url\":\"https://voiceml.voicetel.com/v1/Configuration\"}");
+                "\"url\":\"https://conversations.voicetel.com/v1/Configuration\"}");
         });
         using var client = NewClient(handler);
         var cfg = await client.ConversationsV1.Configuration.FetchAsync();
@@ -307,7 +307,7 @@ public class V090Tests
     {
         var handler = new MockHandler(req =>
         {
-            Assert.Equal("https://voiceml.voicetel.com/v1/Configuration/Webhooks", req.RequestUri!.ToString());
+            Assert.Equal("https://conversations.voicetel.com/v1/Configuration/Webhooks", req.RequestUri!.ToString());
             if (req.Method == HttpMethod.Post)
             {
                 var raw = req.Content!.ReadAsStringAsync().Result;
@@ -319,7 +319,7 @@ public class V090Tests
                 "{\"method\":\"POST\",\"target\":\"webhook\"," +
                 "\"filters\":[\"onMessageAdded\",\"onConversationUpdated\"]," +
                 "\"pre_webhook_url\":null,\"post_webhook_url\":\"https://hooks.example.com/post\"," +
-                "\"url\":\"https://voiceml.voicetel.com/v1/Configuration/Webhooks\"}");
+                "\"url\":\"https://conversations.voicetel.com/v1/Configuration/Webhooks\"}");
         });
         using var client = NewClient(handler);
         var cfg = await client.ConversationsV1.Configuration.Webhooks.FetchAsync();
@@ -343,7 +343,7 @@ public class V090Tests
         const string addrSid = "IG00000000000000000000000000000001";
         var handler = new MockHandler(req =>
         {
-            Assert.Equal("https://voiceml.voicetel.com/v1/Configuration/Addresses", req.RequestUri!.ToString());
+            Assert.Equal("https://conversations.voicetel.com/v1/Configuration/Addresses", req.RequestUri!.ToString());
             var form = ParseForm(req.Content!.ReadAsStringAsync().Result);
             Assert.Equal("sms", form["Type"]);
             Assert.Equal("+15551234567", form["Address"]);
@@ -388,7 +388,7 @@ public class V090Tests
         const string convSid = "CH00000000000000000000000000000008";
         var handler = new MockHandler(req =>
         {
-            Assert.Equal("https://voiceml.voicetel.com/v1/ConversationWithParticipants", req.RequestUri!.ToString());
+            Assert.Equal("https://conversations.voicetel.com/v1/ConversationWithParticipants", req.RequestUri!.ToString());
             var raw = req.Content!.ReadAsStringAsync().Result;
             var participants = ExtractRepeated(raw, "Participant");
             Assert.Equal(2, participants.Count);
@@ -414,7 +414,7 @@ public class V090Tests
         const string svcSid = "IS00000000000000000000000000000001";
         var handler = new MockHandler(req =>
         {
-            Assert.Equal("https://voiceml.voicetel.com/v1/Services", req.RequestUri!.ToString());
+            Assert.Equal("https://conversations.voicetel.com/v1/Services", req.RequestUri!.ToString());
             var form = ParseForm(req.Content!.ReadAsStringAsync().Result);
             Assert.Equal("eu-tenant", form["FriendlyName"]);
             return Reply(HttpStatusCode.Created, ServiceJson(svcSid));
@@ -597,7 +597,7 @@ public class V090Tests
     private static string ConversationJson(string sid, string state) =>
         "{\"sid\":\"" + sid + "\",\"account_sid\":\"" + AccSid + "\",\"state\":\"" + state + "\"," +
         "\"attributes\":\"{}\",\"date_created\":\"2026-06-27T00:00:00Z\"," +
-        "\"date_updated\":\"2026-06-27T00:00:00Z\",\"url\":\"https://voiceml.voicetel.com/v1/Conversations/" + sid + "\"}";
+        "\"date_updated\":\"2026-06-27T00:00:00Z\",\"url\":\"https://conversations.voicetel.com/v1/Conversations/" + sid + "\"}";
 
     private static string MessageJson(string convSid, string msgSid) =>
         "{\"sid\":\"" + msgSid + "\",\"conversation_sid\":\"" + convSid + "\",\"index\":0," +

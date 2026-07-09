@@ -48,6 +48,20 @@ public sealed record ClientOptions
     /// pointing at a staging server.</summary>
     public string BaseUrl { get; init; } = DefaultBaseUrl;
 
+    /// <summary>Optional explicit base URL for the Messaging Service product
+    /// (<c>client.MessagingV1.*</c>). When <c>null</c>, it is derived from <see cref="BaseUrl"/>
+    /// by swapping the <c>voiceml</c> label for <c>messaging</c> on recognised
+    /// <c>*.voicetel.com</c> hosts (see <see cref="ProductHosts"/>); other base URLs fall back to
+    /// <see cref="BaseUrl"/> unchanged. Set this to reach Messaging Service on a custom host.</summary>
+    public string? MessagingBaseUrl { get; init; }
+
+    /// <summary>Optional explicit base URL for the Conversations product
+    /// (<c>client.ConversationsV1.*</c>). When <c>null</c>, it is derived from <see cref="BaseUrl"/>
+    /// by swapping the <c>voiceml</c> label for <c>conversations</c> on recognised
+    /// <c>*.voicetel.com</c> hosts (see <see cref="ProductHosts"/>); other base URLs fall back to
+    /// <see cref="BaseUrl"/> unchanged.</summary>
+    public string? ConversationsBaseUrl { get; init; }
+
     /// <summary>Per-request timeout. Applied when this SDK owns the <see cref="HttpClient"/>;
     /// when a caller provides their own client, the caller's timeout is used.</summary>
     public TimeSpan Timeout { get; init; } = DefaultTimeout;

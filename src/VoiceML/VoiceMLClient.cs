@@ -65,6 +65,16 @@ public sealed class VoiceMLClient : IDisposable
     /// for Tools and Knowledge and the send-message endpoint.</summary>
     public AssistantsV1Resource AssistantsV1 { get; }
 
+    /// <summary>Messaging Service (<c>MG…</c>) — <c>/v1/Services</c> CRUD. Routed at the messaging
+    /// host (<c>messaging.voicetel.com</c>), which is what disambiguates it from a Conversation
+    /// Service (<c>IS…</c>) on the shared path shape.</summary>
+    public MessagingV1Resource MessagingV1 { get; }
+
+    /// <summary>Twilio-compatible Pricing v1/v2 — read-only Voice / Messaging / PhoneNumbers /
+    /// Trunking country + number rates. Served on the default host (VoiceML has no pricing
+    /// subdomain).</summary>
+    public PricingResource Pricing { get; }
+
     /// <summary>Diagnostic endpoints: <c>/health</c> and <c>/openapi.json</c>.</summary>
     public DiagnosticsResource Diagnostics { get; }
 
@@ -80,6 +90,15 @@ public sealed class VoiceMLClient : IDisposable
     public VoiceMLClient(ClientOptions options)
     {
         _transport = new Transport(options);
+
+        // Per-product host routing: Conversations and Messaging Service answer on their own
+        // subdomains. The scoped transports share the main transport's HTTP client + credentials
+        // but pin the product base URL so those groups land on the right host.
+        var (_, messagingBaseUrl, conversationsBaseUrl) = ProductHosts.Resolve(
+            options.BaseUrl, options.MessagingBaseUrl, options.ConversationsBaseUrl);
+        var conversationsTransport = _transport.WithBaseUrl(conversationsBaseUrl);
+        var messagingTransport = _transport.WithBaseUrl(messagingBaseUrl);
+
         Calls = new CallsResource(_transport);
         Conferences = new ConferencesResource(_transport);
         Queues = new QueuesResource(_transport);
@@ -91,8 +110,10 @@ public sealed class VoiceMLClient : IDisposable
         Sip = new SipResource(_transport);
         RoutesV2 = new RoutesV2Resource(_transport);
         VoiceV1 = new VoiceV1Resource(_transport);
-        ConversationsV1 = new ConversationsV1Resource(_transport);
+        ConversationsV1 = new ConversationsV1Resource(conversationsTransport);
         AssistantsV1 = new AssistantsV1Resource(_transport);
+        MessagingV1 = new MessagingV1Resource(messagingTransport);
+        Pricing = new PricingResource(_transport);
         Diagnostics = new DiagnosticsResource(_transport);
     }
 

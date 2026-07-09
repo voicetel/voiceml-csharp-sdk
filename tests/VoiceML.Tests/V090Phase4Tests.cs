@@ -79,7 +79,7 @@ public class V090Phase4Tests
         Assert.Equal(ChatSvcSid, c.ChatServiceSid);
         Assert.NotNull(captured);
         Assert.Equal(
-            $"https://voiceml.voicetel.com/v1/Services/{ChatSvcSid}/Conversations",
+            $"https://conversations.voicetel.com/v1/Services/{ChatSvcSid}/Conversations",
             captured!.ToString());
         Assert.DoesNotContain(AccSid, captured.ToString());
     }
@@ -92,7 +92,7 @@ public class V090Phase4Tests
         {
             Assert.Equal(HttpMethod.Get, req.Method);
             Assert.Equal(
-                $"https://voiceml.voicetel.com/v1/Services/{ChatSvcSid}/Conversations?PageSize=10",
+                $"https://conversations.voicetel.com/v1/Services/{ChatSvcSid}/Conversations?PageSize=10",
                 req.RequestUri!.ToString());
             var body = "{\"conversations\":[" + ServiceConversationJson(convSid, state: "active") + "]," +
                        "\"meta\":{\"page\":0,\"page_size\":10,\"key\":\"conversations\"}}";
@@ -116,7 +116,7 @@ public class V090Phase4Tests
         {
             call++;
             Assert.Equal(
-                $"https://voiceml.voicetel.com/v1/Services/{ChatSvcSid}/Conversations/{convSid}",
+                $"https://conversations.voicetel.com/v1/Services/{ChatSvcSid}/Conversations/{convSid}",
                 req.RequestUri!.ToString());
             return call switch
             {
@@ -147,7 +147,7 @@ public class V090Phase4Tests
         {
             Assert.Equal(HttpMethod.Post, req.Method);
             Assert.Equal(
-                $"https://voiceml.voicetel.com/v1/Services/{ChatSvcSid}/Conversations/{convSid}/Messages",
+                $"https://conversations.voicetel.com/v1/Services/{ChatSvcSid}/Conversations/{convSid}/Messages",
                 req.RequestUri!.ToString());
             var form = ParseForm(req.Content!.ReadAsStringAsync().Result);
             Assert.Equal("alice", form["Author"]);
@@ -171,7 +171,7 @@ public class V090Phase4Tests
         {
             call++;
             Assert.Equal(
-                $"https://voiceml.voicetel.com/v1/Services/{ChatSvcSid}/Conversations/{convSid}/Messages/{msgSid}",
+                $"https://conversations.voicetel.com/v1/Services/{ChatSvcSid}/Conversations/{convSid}/Messages/{msgSid}",
                 req.RequestUri!.ToString());
             return call < 3
                 ? Reply(HttpStatusCode.OK, ServiceMessageJson(convSid, msgSid))
@@ -193,7 +193,7 @@ public class V090Phase4Tests
         {
             Assert.Equal(HttpMethod.Get, req.Method);
             Assert.Equal(
-                $"https://voiceml.voicetel.com/v1/Services/{ChatSvcSid}/Conversations/{convSid}/Messages",
+                $"https://conversations.voicetel.com/v1/Services/{ChatSvcSid}/Conversations/{convSid}/Messages",
                 req.RequestUri!.ToString());
             return Reply(HttpStatusCode.OK,
                 "{\"messages\":[], \"meta\":{\"page\":0,\"page_size\":50,\"key\":\"messages\"}}");
@@ -215,7 +215,7 @@ public class V090Phase4Tests
             call++;
             Assert.Equal(HttpMethod.Get, req.Method);
             var basePath =
-                $"https://voiceml.voicetel.com/v1/Services/{ChatSvcSid}/Conversations/{convSid}/Messages/{msgSid}/Receipts";
+                $"https://conversations.voicetel.com/v1/Services/{ChatSvcSid}/Conversations/{convSid}/Messages/{msgSid}/Receipts";
             if (call == 1)
             {
                 Assert.Equal(basePath, req.RequestUri!.ToString());
@@ -246,7 +246,7 @@ public class V090Phase4Tests
         var handler = new MockHandler(req =>
         {
             Assert.Equal(
-                $"https://voiceml.voicetel.com/v1/Services/{ChatSvcSid}/Conversations/{convSid}/Participants",
+                $"https://conversations.voicetel.com/v1/Services/{ChatSvcSid}/Conversations/{convSid}/Participants",
                 req.RequestUri!.ToString());
             var form = ParseForm(req.Content!.ReadAsStringAsync().Result);
             Assert.Equal("+15551112222", form["MessagingBinding.Address"]);
@@ -302,7 +302,7 @@ public class V090Phase4Tests
         var handler = new MockHandler(req =>
         {
             Assert.Equal(
-                $"https://voiceml.voicetel.com/v1/Services/{ChatSvcSid}/Conversations/{convSid}/Webhooks",
+                $"https://conversations.voicetel.com/v1/Services/{ChatSvcSid}/Conversations/{convSid}/Webhooks",
                 req.RequestUri!.ToString());
             var form = ParseForm(req.Content!.ReadAsStringAsync().Result);
             Assert.Equal("webhook", form["Target"]);
@@ -357,7 +357,7 @@ public class V090Phase4Tests
         {
             Assert.Equal(HttpMethod.Post, req.Method);
             Assert.Equal(
-                $"https://voiceml.voicetel.com/v1/Services/{ChatSvcSid}/ConversationWithParticipants",
+                $"https://conversations.voicetel.com/v1/Services/{ChatSvcSid}/ConversationWithParticipants",
                 req.RequestUri!.ToString());
             var raw = req.Content!.ReadAsStringAsync().Result;
             var participants = ExtractRepeated(raw, "Participant");
@@ -387,7 +387,7 @@ public class V090Phase4Tests
         {
             Assert.Equal(HttpMethod.Get, req.Method);
             Assert.StartsWith(
-                $"https://voiceml.voicetel.com/v1/Services/{ChatSvcSid}/ParticipantConversations",
+                $"https://conversations.voicetel.com/v1/Services/{ChatSvcSid}/ParticipantConversations",
                 req.RequestUri!.ToString());
             Assert.Contains("Identity=alice", req.RequestUri.ToString());
             Assert.Contains("Address=%2B15551234567", req.RequestUri.ToString());
@@ -410,7 +410,7 @@ public class V090Phase4Tests
         {
             Assert.Equal(HttpMethod.Get, req.Method);
             Assert.Equal(
-                $"https://voiceml.voicetel.com/v1/Services/{ChatSvcSid}/Users/{userSid}/Conversations",
+                $"https://conversations.voicetel.com/v1/Services/{ChatSvcSid}/Users/{userSid}/Conversations",
                 req.RequestUri!.ToString());
             return Reply(HttpStatusCode.OK,
                 "{\"conversations\":[], \"meta\":{\"page\":0,\"page_size\":50,\"key\":\"conversations\"}}");
@@ -429,7 +429,7 @@ public class V090Phase4Tests
         var handler = new MockHandler(req =>
         {
             Assert.Equal(
-                $"https://voiceml.voicetel.com/v1/Services/{ChatSvcSid}/Roles",
+                $"https://conversations.voicetel.com/v1/Services/{ChatSvcSid}/Roles",
                 req.RequestUri!.ToString());
             var raw = req.Content!.ReadAsStringAsync().Result;
             var perms = ExtractRepeated(raw, "Permission");
@@ -485,7 +485,7 @@ public class V090Phase4Tests
         var handler = new MockHandler(req =>
         {
             Assert.Equal(
-                $"https://voiceml.voicetel.com/v1/Services/{ChatSvcSid}/Users",
+                $"https://conversations.voicetel.com/v1/Services/{ChatSvcSid}/Users",
                 req.RequestUri!.ToString());
             var form = ParseForm(req.Content!.ReadAsStringAsync().Result);
             Assert.Equal("alice", form["Identity"]);
@@ -532,7 +532,7 @@ public class V090Phase4Tests
         {
             Assert.Equal(HttpMethod.Get, req.Method);
             Assert.StartsWith(
-                $"https://voiceml.voicetel.com/v1/Services/{ChatSvcSid}/Bindings",
+                $"https://conversations.voicetel.com/v1/Services/{ChatSvcSid}/Bindings",
                 req.RequestUri!.ToString());
             Assert.Contains("BindingType=apn", req.RequestUri.ToString());
             Assert.Contains("Identity=alice", req.RequestUri.ToString());
@@ -554,7 +554,7 @@ public class V090Phase4Tests
         {
             call++;
             Assert.Equal(
-                $"https://voiceml.voicetel.com/v1/Services/{ChatSvcSid}/Bindings/{bSid}",
+                $"https://conversations.voicetel.com/v1/Services/{ChatSvcSid}/Bindings/{bSid}",
                 req.RequestUri!.ToString());
             return call == 1
                 ? Reply(HttpStatusCode.OK,
@@ -582,7 +582,7 @@ public class V090Phase4Tests
         {
             call++;
             Assert.Equal(
-                $"https://voiceml.voicetel.com/v1/Services/{ChatSvcSid}/Configuration",
+                $"https://conversations.voicetel.com/v1/Services/{ChatSvcSid}/Configuration",
                 req.RequestUri!.ToString());
             if (req.Method == HttpMethod.Post)
             {
@@ -592,7 +592,7 @@ public class V090Phase4Tests
             }
             return Reply(HttpStatusCode.OK,
                 "{\"chat_service_sid\":\"" + ChatSvcSid + "\",\"reachability_enabled\":true," +
-                "\"url\":\"https://voiceml.voicetel.com/v1/Services/" + ChatSvcSid + "/Configuration\"}");
+                "\"url\":\"https://conversations.voicetel.com/v1/Services/" + ChatSvcSid + "/Configuration\"}");
         });
         using var client = NewClient(handler);
         var cfg = await client.ConversationsV1.Services.Scope(ChatSvcSid).Configuration.FetchAsync();
@@ -614,7 +614,7 @@ public class V090Phase4Tests
         {
             call++;
             Assert.Equal(
-                $"https://voiceml.voicetel.com/v1/Services/{ChatSvcSid}/Configuration/Notifications",
+                $"https://conversations.voicetel.com/v1/Services/{ChatSvcSid}/Configuration/Notifications",
                 req.RequestUri!.ToString());
             if (req.Method == HttpMethod.Post)
             {
@@ -627,7 +627,7 @@ public class V090Phase4Tests
             }
             return Reply(HttpStatusCode.OK,
                 "{\"chat_service_sid\":\"" + ChatSvcSid + "\",\"log_enabled\":true," +
-                "\"url\":\"https://voiceml.voicetel.com/v1/Services/" + ChatSvcSid + "/Configuration/Notifications\"}");
+                "\"url\":\"https://conversations.voicetel.com/v1/Services/" + ChatSvcSid + "/Configuration/Notifications\"}");
         });
         using var client = NewClient(handler);
         var n = await client.ConversationsV1.Services.Scope(ChatSvcSid).Configuration.Notifications.FetchAsync();
@@ -652,7 +652,7 @@ public class V090Phase4Tests
         {
             call++;
             Assert.Equal(
-                $"https://voiceml.voicetel.com/v1/Services/{ChatSvcSid}/Configuration/Webhooks",
+                $"https://conversations.voicetel.com/v1/Services/{ChatSvcSid}/Configuration/Webhooks",
                 req.RequestUri!.ToString());
             if (req.Method == HttpMethod.Post)
             {
@@ -669,7 +669,7 @@ public class V090Phase4Tests
                 "{\"chat_service_sid\":\"" + ChatSvcSid + "\",\"method\":\"POST\"," +
                 "\"filters\":[\"onMessageAdded\",\"onConversationUpdated\"]," +
                 "\"pre_webhook_url\":null,\"post_webhook_url\":\"https://hooks.example.com/post\"," +
-                "\"url\":\"https://voiceml.voicetel.com/v1/Services/" + ChatSvcSid + "/Configuration/Webhooks\"}");
+                "\"url\":\"https://conversations.voicetel.com/v1/Services/" + ChatSvcSid + "/Configuration/Webhooks\"}");
         });
         using var client = NewClient(handler);
         var w = await client.ConversationsV1.Services.Scope(ChatSvcSid).Configuration.Webhooks.FetchAsync();
@@ -693,7 +693,7 @@ public class V090Phase4Tests
         "\"chat_service_sid\":\"" + ChatSvcSid + "\",\"state\":\"" + state + "\"," +
         "\"attributes\":\"{}\",\"date_created\":\"2026-06-27T00:00:00Z\"," +
         "\"date_updated\":\"2026-06-27T00:00:00Z\"," +
-        "\"url\":\"https://voiceml.voicetel.com/v1/Services/" + ChatSvcSid + "/Conversations/" + sid + "\"}";
+        "\"url\":\"https://conversations.voicetel.com/v1/Services/" + ChatSvcSid + "/Conversations/" + sid + "\"}";
 
     private static string ServiceMessageJson(string convSid, string msgSid) =>
         "{\"sid\":\"" + msgSid + "\",\"conversation_sid\":\"" + convSid + "\"," +

@@ -1,8 +1,8 @@
 # 📞 VoiceML .NET SDK
 
-The official C# / .NET client for the [VoiceML REST API](https://voicetel.com/docs/api/v0.8/voiceml/) — Twilio-compatible outbound voice and answering-machine-detection from VoiceTel, with strongly-typed, `async`/`await`-friendly .NET.
+The official C# / .NET client for the [VoiceML REST API](https://voicetel.com/docs/api/v0.9/voiceml/) — Twilio-compatible outbound voice and answering-machine-detection from VoiceTel, with strongly-typed, `async`/`await`-friendly .NET.
 
-![Version](https://img.shields.io/badge/version-0.9.1-blue)
+![Version](https://img.shields.io/badge/version-0.9.2-blue)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
 ![License](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-green)
 ![Tests](https://img.shields.io/badge/tests-70%20xunit-brightgreen)
@@ -70,13 +70,13 @@ The official C# / .NET client for the [VoiceML REST API](https://voicetel.com/do
 ## 🚀 Installation
 
 ```bash
-dotnet add package VoiceML --version 0.9.1
+dotnet add package VoiceML --version 0.9.2
 ```
 
 Or `<PackageReference>` it directly:
 
 ```xml
-<PackageReference Include="VoiceML" Version="0.9.1" />
+<PackageReference Include="VoiceML" Version="0.9.2" />
 ```
 
 Targets **.NET 8.0**.
@@ -124,7 +124,7 @@ using var client = new VoiceMLClient(new ClientOptions
 var health = await client.Diagnostics.HealthAsync();
 ```
 
-> Don't have credentials yet? See **[voicetel.com/docs/api/v0.8/voiceml/](https://voicetel.com/docs/api/v0.8/voiceml/)** for issuance and rotation.
+> Don't have credentials yet? See **[voicetel.com/docs/api/v0.9/voiceml/](https://voicetel.com/docs/api/v0.9/voiceml/)** for issuance and rotation.
 
 `ClientOptions` is an immutable `record`:
 
@@ -155,7 +155,19 @@ When you supply your own `HttpClient`, the SDK does **not** dispose it — your 
 | `client.Messages` | create, fetch, list, update, delete | To/From/DateSent filters; Body redaction; `Status=canceled` |
 | `client.IncomingPhoneNumbers` | list, fetch, update | exact-match `PhoneNumber` lookup; claim/rebind; release |
 | `client.Notifications` | fetch, list | |
+| `client.MessagingV1.Services` | create, list, fetch, update, delete | Messaging Service (`MG…`); routed at `messaging.voicetel.com` |
+| `client.Pricing` | read-only country + number rates | `V1.Voice/Messaging/PhoneNumbers`, `V2.Voice/Trunking` |
+| `client.ConversationsV1` | conversations, participants, messages, services, … | routed at `conversations.voicetel.com` |
 | `client.Diagnostics` | `HealthAsync`, OpenAPI spec | |
+
+### Product hosts
+
+VoiceML mirrors Twilio's product-per-subdomain model. Conversations answers on
+`conversations.voicetel.com` and Messaging Service on `messaging.voicetel.com`; everything else
+(calls, Voice v1, Routes v2, Assistants v1, Pricing, …) stays on the default
+`voiceml.voicetel.com`. The client derives those hosts from `BaseUrl` automatically — self-hosters
+on a non-`voicetel.com` base keep a single host, and can point `MessagingBaseUrl` /
+`ConversationsBaseUrl` at custom subdomains if needed.
 
 Every method that takes a request body accepts a typed model from `VoiceML.Models`:
 
@@ -326,7 +338,7 @@ dotnet pack -c Release
 
 ## 📖 API Documentation
 
-- **Reference docs:** [voicetel.com/docs/api/v0.8/voiceml/](https://voicetel.com/docs/api/v0.8/voiceml/)
+- **Reference docs:** [voicetel.com/docs/api/v0.9/voiceml/](https://voicetel.com/docs/api/v0.9/voiceml/)
 - **Validator:** [voicetel.com/voiceml/validator/](https://voicetel.com/voiceml/validator/)
 - **SDK catalogue:** [voicetel.com/docs/voiceml-sdks/](https://voicetel.com/docs/voiceml-sdks/)
 - **Type definitions:** see the `VoiceML.Models` namespace — every wire shape has a record / class.

@@ -77,6 +77,31 @@ public sealed class Transport : IDisposable
         _basicAuthHeader = "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes(raw));
     }
 
+    /// <summary>Private scoped constructor: shares <paramref name="parent"/>'s
+    /// <see cref="HttpClient"/>, auth, and retry policy but pins a different base URL. Used by
+    /// <see cref="WithBaseUrl"/> to route a whole product resource group (Conversations, Messaging
+    /// Service) at its own subdomain. Never owns the shared client, so it never disposes it — the
+    /// parent transport retains lifetime ownership.</summary>
+    private Transport(Transport parent, string baseUrl)
+    {
+        _http = parent._http;
+        _ownsClient = false;
+        _baseUrl = baseUrl.TrimEnd('/');
+        _accountSid = parent._accountSid;
+        _basicAuthHeader = parent._basicAuthHeader;
+        _maxRetries = parent._maxRetries;
+        _userAgent = parent._userAgent;
+        _logger = parent._logger;
+    }
+
+    /// <summary>Return a transport view pinned to <paramref name="baseUrl"/>, sharing this
+    /// transport's HTTP client, credentials, and retry policy. An entire resource group can be
+    /// handed the returned transport so every request lands on the product subdomain
+    /// (<c>conversations.voicetel.com</c> / <c>messaging.voicetel.com</c>) without each resource
+    /// needing to know its own host. The returned transport does not own the HTTP client and must
+    /// not be disposed independently.</summary>
+    public Transport WithBaseUrl(string baseUrl) => new(this, baseUrl);
+
     /// <summary>Send a request and deserialize the JSON response into <typeparamref name="T"/>.
     /// <paramref name="formBody"/> is form-urlencoded; <paramref name="jsonBody"/> is JSON.
     /// Pass at most one. Use <see cref="SendNoContentAsync"/> when the endpoint returns no body
