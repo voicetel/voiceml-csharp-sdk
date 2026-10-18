@@ -61,5 +61,5 @@ jobs:
       - name: Local-feed installation smoke test
         run: |
           dotnet new console -n Smoke -o "$RUNNER_TEMP/voiceml-smoke" -f net10.0
-          dotnet add "$RUNNER_TEMP/voiceml-smoke/Smoke.csproj" package VoiceML --version 0.9.2 --source "$GITHUB_WORKSPACE/packages"
+          dotnet add "$RUNNER_TEMP/voiceml-smoke/Smoke.csproj" package VoiceML --version 0.9.3 --source "$GITHUB_WORKSPACE/packages"
           dotnet build "$RUNNER_TEMP/voiceml-smoke/Smoke.csproj" -c Release -warnaserror
