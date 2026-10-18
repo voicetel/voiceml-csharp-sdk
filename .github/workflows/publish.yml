@@ -1,57 +1,62 @@
 name: Publish to NuGet
 
-# Publishes the VoiceML NuGet package to nuget.org on every v* tag push.
-# Uses OIDC trusted publishing — no long-lived API key stored as a secret.
-#
-# One-time setup at https://www.nuget.org/account/trusted-publishing :
-#   Repository Owner: voicetel
-#   Repository:       voiceml-csharp-sdk
-#   Workflow File:    publish.yml
-#   Environment:      (leave blank)
-#   Package Owner:    <nuget.org username>
-#
-# `NuGet/login@v1` trades the GitHub OIDC token for a 1-hour API key.
-# `--skip-duplicate` keeps the publish idempotent.
-
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to publish (must match the project version)
+        required: true
 
 permissions:
   contents: read
-  id-token: write   # required for OIDC trusted publishing
 
 jobs:
-  publish:
-    name: Publish to NuGet
+  test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/checkout@v4
         with:
-          dotnet-version: '8.0.x'
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - run: dotnet test -c Release
+      - run: dotnet build examples/Quickstart/Quickstart.csproj -c Release
 
-      - name: Restore
-        run: dotnet restore
-
-      - name: Build (Release)
-        run: dotnet build -c Release --no-restore
-
-      - name: Pack (nupkg + snupkg)
-        run: dotnet pack -c Release --no-build -o packages
-
-      - name: List packed artifacts
-        run: ls -la packages/
-
-      - name: Authenticate to nuget.org via OIDC
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Verify tag matches package version
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          version=$(dotnet msbuild src/VoiceML/VoiceML.csproj -getProperty:Version)
+          test "$RELEASE_TAG" = "v$version"
+      - name: Pack library and symbols
+        run: dotnet pack -c Release -o packages
+      - name: Authenticate to nuget.org via trusted publishing
         id: nuget-login
         uses: NuGet/login@v1
         with:
-          user: voicetel
-
+          # The nuget.org trusted-publishing policy must be owned by exactly this
+          # user, not merely by the GitHub organization or package co-owner.
+          # Set the repository variable to the policy creator's nuget.org username.
+          user: ${{ vars.NUGET_TRUSTED_PUBLISHING_USER }}
       - name: Publish to nuget.org
         env:
           NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}

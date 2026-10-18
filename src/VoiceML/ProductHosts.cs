@@ -3,17 +3,16 @@ using System;
 namespace VoiceML;
 
 /// <summary>Per-product host resolution for the VoiceML API.
-/// <para>Twilio splits its products across dedicated subdomains
-/// (<c>api.twilio.com</c>, <c>conversations.twilio.com</c>, <c>messaging.twilio.com</c>, …).
-/// VoiceML mirrors that shape on <c>voicetel.com</c>: the Conversations product answers on
+/// <para>VoiceML routes products on dedicated <c>voicetel.com</c> subdomains:
+/// the Conversations product answers on
 /// <c>conversations.voicetel.com</c> and the Messaging Service product on
 /// <c>messaging.voicetel.com</c>, while everything else stays on the default
 /// <c>voiceml.voicetel.com</c> host. Conversation Service and Messaging Service share the
-/// identical <c>/v1/Services</c> path shape, so the <em>host</em> is what disambiguates them
+/// shared <c>/v1/Services</c> route, so the <em>host</em> is what disambiguates them
 /// on the wire.</para>
 /// <para>Given the configured base URL this type derives the two product hosts by swapping the
 /// leftmost <c>voiceml</c> label — but only for recognised <c>*.voicetel.com</c> hosts. For any
-/// other base URL (a self-hosted callBroadcast instance, a test stub, a regional override) the
+/// other base URL (a self-hosted instance, a test stub, a regional override) the
 /// product hosts fall back to the configured host unchanged, so a single-host deployment keeps
 /// working. A caller who needs Messaging Service against a custom host points
 /// <see cref="ClientOptions.MessagingBaseUrl"/> (or <see cref="ClientOptions.ConversationsBaseUrl"/>)

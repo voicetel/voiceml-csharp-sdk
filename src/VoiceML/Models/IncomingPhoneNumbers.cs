@@ -27,22 +27,22 @@ public sealed record IncomingPhoneNumberCapabilities
 public sealed record IncomingPhoneNumber
 {
     /// <summary>Twilio-format Phone Number SID (<c>PN</c> + 32 hex).</summary>
-    [JsonPropertyName("sid")] public string Sid { get; init; } = "";
+    [JsonPropertyName("sid")] public string? Sid { get; init; }
 
     /// <summary>Owning Account SID.</summary>
-    [JsonPropertyName("account_sid")] public string AccountSid { get; init; } = "";
+    [JsonPropertyName("account_sid")] public string? AccountSid { get; init; }
 
     /// <summary>E.164 phone number (leading <c>+</c>, 7-15 digits).</summary>
-    [JsonPropertyName("phone_number")] public string PhoneNumber { get; init; } = "";
+    [JsonPropertyName("phone_number")] public string? PhoneNumber { get; init; }
 
     /// <summary>Display name. Empty by default in v0.5.x.</summary>
     [JsonPropertyName("friendly_name")] public string? FriendlyName { get; init; }
 
     /// <summary>Twilio API version label (always <c>2010-04-01</c> for this surface).</summary>
-    [JsonPropertyName("api_version")] public string ApiVersion { get; init; } = "";
+    [JsonPropertyName("api_version")] public string? ApiVersion { get; init; }
 
     /// <summary>Resource URI under <c>/2010-04-01/Accounts/{AccountSid}/IncomingPhoneNumbers/{Sid}.json</c>.</summary>
-    [JsonPropertyName("uri")] public string Uri { get; init; } = "";
+    [JsonPropertyName("uri")] public string? Uri { get; init; }
 
     /// <summary>Twilio-compat origin: <c>twilio</c>, <c>hosted</c>, or empty.
     /// VoiceML emits empty (operator-managed provisioning model).</summary>
@@ -75,19 +75,19 @@ public sealed record IncomingPhoneNumber
     /// <summary>Twilio-compat: VoiceML routes inbound as <c>voice</c> only.</summary>
     [JsonPropertyName("voice_receive_mode")] public string? VoiceReceiveMode { get; init; }
 
-    /// <summary>Twilio-compat: SMS handler URL. Empty (VoiceML is voice-only).</summary>
+    /// <summary>Webhook URL for inbound SMS routed through this number.</summary>
     [JsonPropertyName("sms_url")] public string? SmsUrl { get; init; }
 
-    /// <summary>Twilio-compat: empty (SMS not handled).</summary>
+    /// <summary>HTTP method used for the inbound SMS webhook.</summary>
     [JsonPropertyName("sms_method")] public string? SmsMethod { get; init; }
 
-    /// <summary>Twilio-compat: empty (SMS not handled).</summary>
+    /// <summary>Fallback SMS webhook used when the primary webhook fails.</summary>
     [JsonPropertyName("sms_fallback_url")] public string? SmsFallbackUrl { get; init; }
 
-    /// <summary>Twilio-compat: empty (SMS not handled).</summary>
+    /// <summary>HTTP method used for the fallback SMS webhook.</summary>
     [JsonPropertyName("sms_fallback_method")] public string? SmsFallbackMethod { get; init; }
 
-    /// <summary>Twilio-compat: empty (SMS not handled).</summary>
+    /// <summary>Linked Application SID supplying this number's SMS routing configuration.</summary>
     [JsonPropertyName("sms_application_sid")] public string? SmsApplicationSid { get; init; }
 
     /// <summary>Twilio-compat lifecycle webhook. VoiceML emits empty.</summary>
@@ -127,6 +127,9 @@ public sealed record IncomingPhoneNumber
     /// Added in spec v0.6.2 (D6). VoiceML emits the operator-declared classification or empty.</summary>
     [JsonPropertyName("type")] public string? Type { get; init; }
 
+    /// <summary>Twilio-compat subresource map (e.g. <c>assigned_add_ons</c>).</summary>
+    [JsonPropertyName("subresource_uris")] public Dictionary<string, string>? SubresourceUris { get; init; }
+
     /// <summary>RFC 3339 creation timestamp.</summary>
     [JsonPropertyName("date_created")] public string? DateCreated { get; init; }
 
@@ -145,8 +148,19 @@ public sealed record IncomingPhoneNumberList : Page
 /// <summary>Query-string params for <c>GET /IncomingPhoneNumbers.json</c>.</summary>
 public sealed record ListIncomingPhoneNumbersOptions
 {
-    /// <summary>Exact-match filter on the E.164 phone number. Returns a 0-or-1-row envelope.</summary>
+    /// <summary>Filter on the number: a partial number where <c>*</c> stands for any one
+    /// digit, matched anywhere in the number's digits.</summary>
     public string? PhoneNumber { get; init; }
+
+    /// <summary>Filter on the whole friendly name (the formatted number), matched
+    /// case-insensitively.</summary>
+    public string? FriendlyName { get; init; }
+
+    /// <summary>Beta-inventory filter. VoiceML has no beta numbers, so this excludes nothing.</summary>
+    public bool? Beta { get; init; }
+
+    /// <summary>Origin filter: <c>twilio</c> passes every number; <c>hosted</c> passes none.</summary>
+    public string? Origin { get; init; }
 
     /// <summary>Zero-based page index.</summary>
     public int? Page { get; init; }
@@ -161,6 +175,9 @@ public sealed record ListIncomingPhoneNumbersOptions
     public IEnumerable<KeyValuePair<string, string?>> ToQuery()
     {
         yield return new("PhoneNumber", PhoneNumber);
+        yield return new("FriendlyName", FriendlyName);
+        yield return new("Beta", FormHelpers.BoolStr(Beta));
+        yield return new("Origin", Origin);
         yield return new("Page", Page?.ToString());
         yield return new("PageSize", PageSize?.ToString());
         yield return new("PageToken", PageToken);
@@ -224,6 +241,22 @@ public sealed record CreateIncomingPhoneNumberOptions : IFormSerializable
     /// <summary>HTTP method for the voice fallback URL.</summary>
     public string? VoiceFallbackMethod { get; init; }
 
+    /// <summary>Inbound-SMS webhook URL for this number.</summary>
+    public string? SmsUrl { get; init; }
+
+    /// <summary>HTTP method for <see cref="SmsUrl"/> (<c>GET</c> or <c>POST</c>).</summary>
+    public string? SmsMethod { get; init; }
+
+    /// <summary>Called when requesting or executing the TwiML at <see cref="SmsUrl"/> fails.</summary>
+    public string? SmsFallbackUrl { get; init; }
+
+    /// <summary>HTTP method for <see cref="SmsFallbackUrl"/>.</summary>
+    public string? SmsFallbackMethod { get; init; }
+
+    /// <summary>Linked <c>AP…</c> Application SID that supplies the SMS webhook configuration
+    /// for this number.</summary>
+    public string? SmsApplicationSid { get; init; }
+
     /// <inheritdoc/>
     public IEnumerable<KeyValuePair<string, string?>> ToForm()
     {
@@ -232,6 +265,11 @@ public sealed record CreateIncomingPhoneNumberOptions : IFormSerializable
         yield return new("VoiceMethod", VoiceMethod);
         yield return new("VoiceFallbackUrl", VoiceFallbackUrl);
         yield return new("VoiceFallbackMethod", VoiceFallbackMethod);
+        yield return new("SmsUrl", SmsUrl);
+        yield return new("SmsMethod", SmsMethod);
+        yield return new("SmsFallbackUrl", SmsFallbackUrl);
+        yield return new("SmsFallbackMethod", SmsFallbackMethod);
+        yield return new("SmsApplicationSid", SmsApplicationSid);
     }
 }
 
@@ -250,6 +288,22 @@ public sealed record UpdateIncomingPhoneNumberOptions : IFormSerializable
     /// <summary>HTTP method for the voice fallback URL.</summary>
     public string? VoiceFallbackMethod { get; init; }
 
+    /// <summary>Inbound-SMS webhook URL for this number.</summary>
+    public string? SmsUrl { get; init; }
+
+    /// <summary>HTTP method for <see cref="SmsUrl"/> (<c>GET</c> or <c>POST</c>).</summary>
+    public string? SmsMethod { get; init; }
+
+    /// <summary>Called when requesting or executing the TwiML at <see cref="SmsUrl"/> fails.</summary>
+    public string? SmsFallbackUrl { get; init; }
+
+    /// <summary>HTTP method for <see cref="SmsFallbackUrl"/>.</summary>
+    public string? SmsFallbackMethod { get; init; }
+
+    /// <summary>Linked <c>AP…</c> Application SID that supplies the SMS webhook configuration
+    /// for this number.</summary>
+    public string? SmsApplicationSid { get; init; }
+
     /// <inheritdoc/>
     public IEnumerable<KeyValuePair<string, string?>> ToForm()
     {
@@ -257,5 +311,34 @@ public sealed record UpdateIncomingPhoneNumberOptions : IFormSerializable
         yield return new("VoiceMethod", VoiceMethod);
         yield return new("VoiceFallbackUrl", VoiceFallbackUrl);
         yield return new("VoiceFallbackMethod", VoiceFallbackMethod);
+        yield return new("SmsUrl", SmsUrl);
+        yield return new("SmsMethod", SmsMethod);
+        yield return new("SmsFallbackUrl", SmsFallbackUrl);
+        yield return new("SmsFallbackMethod", SmsFallbackMethod);
+        yield return new("SmsApplicationSid", SmsApplicationSid);
+    }
+}
+
+/// <summary>Body for the type-specific <c>POST /IncomingPhoneNumbers/{Local,Mobile,TollFree}</c>
+/// endpoints. These accept only the phone number and primary voice routing — use
+/// <see cref="CreateIncomingPhoneNumberOptions"/> on the untyped endpoint for fallback and
+/// SMS routing fields.</summary>
+public sealed record CreateTypedIncomingPhoneNumberOptions : IFormSerializable
+{
+    /// <summary>E.164 phone number to claim.</summary>
+    public required string PhoneNumber { get; init; }
+
+    /// <summary>Primary voice URL.</summary>
+    public string? VoiceUrl { get; init; }
+
+    /// <summary>HTTP method for the voice URL (<c>GET</c> or <c>POST</c>).</summary>
+    public string? VoiceMethod { get; init; }
+
+    /// <inheritdoc/>
+    public IEnumerable<KeyValuePair<string, string?>> ToForm()
+    {
+        yield return new("PhoneNumber", PhoneNumber);
+        yield return new("VoiceUrl", VoiceUrl);
+        yield return new("VoiceMethod", VoiceMethod);
     }
 }

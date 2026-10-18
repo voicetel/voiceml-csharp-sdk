@@ -7,13 +7,13 @@ namespace VoiceML.Models;
 public sealed record CallTranscription
 {
     /// <summary>Transcription SID.</summary>
-    [JsonPropertyName("sid")] public string Sid { get; init; } = "";
+    [JsonPropertyName("sid")] public string? Sid { get; init; }
 
     /// <summary>Owning Account SID.</summary>
-    [JsonPropertyName("account_sid")] public string AccountSid { get; init; } = "";
+    [JsonPropertyName("account_sid")] public string? AccountSid { get; init; }
 
     /// <summary>Source Call SID.</summary>
-    [JsonPropertyName("call_sid")] public string CallSid { get; init; } = "";
+    [JsonPropertyName("call_sid")] public string? CallSid { get; init; }
 
     /// <summary>Friendly name.</summary>
     [JsonPropertyName("name")] public string? Name { get; init; }
@@ -27,24 +27,17 @@ public sealed record CallTranscription
     /// <summary>Status: <c>in-progress</c> or <c>stopped</c>.</summary>
     [JsonPropertyName("status")] public string Status { get; init; } = "";
 
-    /// <summary>Twilio API version label.</summary>
-    [JsonPropertyName("api_version")] public string ApiVersion { get; init; } = "";
+    /// <summary>Legacy field, no longer returned by the server; retained as nullable for older response payloads.</summary>
+    [JsonPropertyName("api_version")] public string? ApiVersion { get; init; }
 
     /// <summary>URI of this transcription.</summary>
-    [JsonPropertyName("uri")] public string Uri { get; init; } = "";
+    [JsonPropertyName("uri")] public string? Uri { get; init; }
 
     /// <summary>RFC 3339 creation timestamp.</summary>
     [JsonPropertyName("date_created")] public string? DateCreated { get; init; }
 
     /// <summary>RFC 3339 last-modification timestamp.</summary>
     [JsonPropertyName("date_updated")] public string? DateUpdated { get; init; }
-}
-
-/// <summary>List response for <c>GET /Calls/{sid}/Transcriptions</c>.</summary>
-public sealed record TranscriptionList : Page
-{
-    /// <summary>The page of CallTranscription resources.</summary>
-    [JsonPropertyName("transcriptions")] public List<CallTranscription> Transcriptions { get; init; } = new();
 }
 
 /// <summary>Body for <c>POST /Calls/{sid}/Transcriptions</c>.</summary>
@@ -106,5 +99,39 @@ public sealed record StopTranscriptionRequest : IFormSerializable
     public IEnumerable<KeyValuePair<string, string?>> ToForm()
     {
         yield return new("Status", Status);
+    }
+}
+
+/// <summary>Query-string params for the transcription list endpoints
+/// (<c>GET /Transcriptions</c> and <c>GET /Recordings/{sid}/Transcriptions</c>).</summary>
+public sealed record ListTranscriptionsParams
+{
+    /// <summary>Filter to transcriptions created on this UTC date (<c>YYYY-MM-DD</c>).</summary>
+    public string? DateCreated { get; init; }
+
+    /// <summary>Transcriptions created strictly before this UTC date/time. Wire name: <c>DateCreated&lt;</c>.</summary>
+    public string? DateCreatedLt { get; init; }
+
+    /// <summary>Transcriptions created strictly after this UTC date/time. Wire name: <c>DateCreated&gt;</c>.</summary>
+    public string? DateCreatedGt { get; init; }
+
+    /// <summary>Zero-based page index.</summary>
+    public int? Page { get; init; }
+
+    /// <summary>Page size.</summary>
+    public int? PageSize { get; init; }
+
+    /// <summary>Opaque cursor for the next page, provided by the API.</summary>
+    public string? PageToken { get; init; }
+
+    /// <summary>Render as a query-parameter sequence.</summary>
+    public IEnumerable<KeyValuePair<string, string?>> ToQuery()
+    {
+        yield return new("DateCreated", DateCreated);
+        yield return new("DateCreated<", DateCreatedLt);
+        yield return new("DateCreated>", DateCreatedGt);
+        yield return new("Page", Page?.ToString());
+        yield return new("PageSize", PageSize?.ToString());
+        yield return new("PageToken", PageToken);
     }
 }

@@ -7,13 +7,13 @@ namespace VoiceML.Models;
 public sealed record Recording
 {
     /// <summary>Recording SID (<c>RE</c> + 32 hex).</summary>
-    [JsonPropertyName("sid")] public string Sid { get; init; } = "";
+    [JsonPropertyName("sid")] public string? Sid { get; init; }
 
     /// <summary>Owning Account SID.</summary>
-    [JsonPropertyName("account_sid")] public string AccountSid { get; init; } = "";
+    [JsonPropertyName("account_sid")] public string? AccountSid { get; init; }
 
     /// <summary>Source Call SID.</summary>
-    [JsonPropertyName("call_sid")] public string CallSid { get; init; } = "";
+    [JsonPropertyName("call_sid")] public string? CallSid { get; init; }
 
     /// <summary>Source Conference SID, if conference-scoped.</summary>
     [JsonPropertyName("conference_sid")] public string? ConferenceSid { get; init; }
@@ -29,6 +29,10 @@ public sealed record Recording
 
     /// <summary>Number of audio channels.</summary>
     [JsonPropertyName("channels")] public int? Channels { get; init; }
+
+    /// <summary>The recorded track (<c>inbound</c>, <c>outbound</c> or <c>both</c>). Present
+    /// only in the response that starts a call recording.</summary>
+    [JsonPropertyName("track")] public string? Track { get; init; }
 
     /// <summary>Duration in seconds, as a decimal string.</summary>
     [JsonPropertyName("duration")] public string? Duration { get; init; }
@@ -70,37 +74,12 @@ public sealed record Recording
     [JsonPropertyName("error_code")] public int? ErrorCode { get; init; }
 }
 
-/// <summary>Recordings list response. The account-scoped endpoint returns the full Twilio-compatible
-/// pagination envelope; per-call and per-conference endpoints currently return only the
-/// <c>recordings</c> array.</summary>
-public sealed record RecordingList
+/// <summary>Recordings list response, shared by the account-scoped, call-scoped and
+/// conference-scoped recording list endpoints.</summary>
+public sealed record RecordingList : Page
 {
     /// <summary>The page of Recording resources.</summary>
     [JsonPropertyName("recordings")] public List<Recording> Recordings { get; init; } = new();
-
-    /// <summary>Zero-based page index.</summary>
-    [JsonPropertyName("page")] public int? Page { get; init; }
-
-    /// <summary>Page size.</summary>
-    [JsonPropertyName("page_size")] public int? PageSize { get; init; }
-
-    /// <summary>Total items.</summary>
-    [JsonPropertyName("total")] public int? Total { get; init; }
-
-    /// <summary>Total pages.</summary>
-    [JsonPropertyName("num_pages")] public int? NumPages { get; init; }
-
-    /// <summary>URI of the first page.</summary>
-    [JsonPropertyName("first_page_uri")] public string? FirstPageUri { get; init; }
-
-    /// <summary>URI of the next page.</summary>
-    [JsonPropertyName("next_page_uri")] public string? NextPageUri { get; init; }
-
-    /// <summary>URI of the previous page.</summary>
-    [JsonPropertyName("previous_page_uri")] public string? PreviousPageUri { get; init; }
-
-    /// <summary>URI of this collection.</summary>
-    [JsonPropertyName("uri")] public string? Uri { get; init; }
 }
 
 /// <summary>Query-string params for recording list endpoints (<c>GET /Recordings</c> and
@@ -205,6 +184,11 @@ public sealed record StartRecordingRequest : IFormSerializable
     /// <summary>Channels: <c>mono</c> or <c>dual</c>.</summary>
     public string? RecordingChannels { get; init; }
 
+    /// <summary>Track selector: <c>inbound</c> records only the audio the call receives,
+    /// <c>outbound</c> only the audio it sends — always one track. <c>both</c> (or unset) mixes
+    /// the two parties.</summary>
+    public string? RecordingTrack { get; init; }
+
     /// <summary>Play a beep when recording starts.</summary>
     public bool? PlayBeep { get; init; }
 
@@ -222,6 +206,7 @@ public sealed record StartRecordingRequest : IFormSerializable
     {
         yield return new("RecordingMaxDuration", RecordingMaxDuration?.ToString());
         yield return new("RecordingChannels", RecordingChannels);
+        yield return new("RecordingTrack", RecordingTrack);
         yield return new("PlayBeep", FormHelpers.BoolStr(PlayBeep));
         yield return new("RecordingStatusCallback", RecordingStatusCallback);
         yield return new("RecordingStatusCallbackMethod", RecordingStatusCallbackMethod);
@@ -235,10 +220,15 @@ public sealed record UpdateRecordingRequest : IFormSerializable
     /// <summary>One of <c>stopped</c>, <c>paused</c>, <c>in-progress</c>.</summary>
     public required string Status { get; init; }
 
+    /// <summary>With <c>Status=paused</c>: <c>skip</c> leaves the paused span out of the
+    /// recording; <c>silence</c> (the server default) replaces it with silence.</summary>
+    public string? PauseBehavior { get; init; }
+
     /// <inheritdoc/>
     public IEnumerable<KeyValuePair<string, string?>> ToForm()
     {
         yield return new("Status", Status);
+        yield return new("PauseBehavior", PauseBehavior);
     }
 }
 
@@ -256,4 +246,50 @@ public sealed record RecordingAudio
 
     /// <summary>True when the audio came via an S3 presigned-URL redirect.</summary>
     public bool ViaRedirect { get; init; }
+}
+
+/// <summary>Change the state of a conference recording. Unlike call recordings, the conference endpoint declares no PauseBehavior parameter.</summary>
+public sealed record UpdateConferenceRecordingRequest : IFormSerializable
+{
+    /// <summary>Requested recording state: stopped, paused or in-progress.</summary>
+    public required string Status { get; init; }
+
+    /// <inheritdoc/>
+    public IEnumerable<KeyValuePair<string, string?>> ToForm()
+    {
+        yield return new("Status", Status);
+    }
+}
+
+/// <summary>Body for <c>POST /Conferences/{sid}/Recordings</c> — start a recording on a live
+/// conference's mixed audio. The returned Recording has <c>source</c> =
+/// <c>StartConferenceRecordingAPI</c>, <c>status</c> = <c>in-progress</c>, and
+/// <c>channels</c> = 1 (conference recordings are always mono).</summary>
+public sealed record StartConferenceRecordingRequest : IFormSerializable
+{
+    /// <summary>Status-callback URL for recording lifecycle events.</summary>
+    public string? RecordingStatusCallback { get; init; }
+
+    /// <summary>HTTP method for the status callback (<c>GET</c> or <c>POST</c>; default
+    /// <c>POST</c>).</summary>
+    public string? RecordingStatusCallbackMethod { get; init; }
+
+    /// <summary>Recording-status events to subscribe to (<c>in-progress</c>,
+    /// <c>completed</c>, <c>absent</c>) — repeated form key or space-separated in one value.
+    /// Default <c>completed</c>.</summary>
+    public List<string>? RecordingStatusCallbackEvent { get; init; }
+
+    /// <inheritdoc/>
+    public IEnumerable<KeyValuePair<string, string?>> ToForm()
+    {
+        yield return new("RecordingStatusCallback", RecordingStatusCallback);
+        yield return new("RecordingStatusCallbackMethod", RecordingStatusCallbackMethod);
+        if (RecordingStatusCallbackEvent is not null)
+        {
+            foreach (var ev in RecordingStatusCallbackEvent)
+            {
+                yield return new("RecordingStatusCallbackEvent", ev);
+            }
+        }
+    }
 }

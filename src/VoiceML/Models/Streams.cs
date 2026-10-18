@@ -8,13 +8,13 @@ namespace VoiceML.Models;
 public sealed record Stream
 {
     /// <summary>Stream SID.</summary>
-    [JsonPropertyName("sid")] public string Sid { get; init; } = "";
+    [JsonPropertyName("sid")] public string? Sid { get; init; }
 
     /// <summary>Owning Account SID.</summary>
-    [JsonPropertyName("account_sid")] public string AccountSid { get; init; } = "";
+    [JsonPropertyName("account_sid")] public string? AccountSid { get; init; }
 
     /// <summary>Source Call SID.</summary>
-    [JsonPropertyName("call_sid")] public string CallSid { get; init; } = "";
+    [JsonPropertyName("call_sid")] public string? CallSid { get; init; }
 
     /// <summary>Friendly name.</summary>
     [JsonPropertyName("name")] public string? Name { get; init; }
@@ -22,24 +22,17 @@ public sealed record Stream
     /// <summary>Status: <c>in-progress</c> or <c>stopped</c>.</summary>
     [JsonPropertyName("status")] public string Status { get; init; } = "";
 
-    /// <summary>Twilio API version label.</summary>
-    [JsonPropertyName("api_version")] public string ApiVersion { get; init; } = "";
+    /// <summary>Legacy field, no longer returned by the server; retained as nullable for older response payloads.</summary>
+    [JsonPropertyName("api_version")] public string? ApiVersion { get; init; }
 
     /// <summary>URI of this stream.</summary>
-    [JsonPropertyName("uri")] public string Uri { get; init; } = "";
+    [JsonPropertyName("uri")] public string? Uri { get; init; }
 
     /// <summary>RFC 3339 creation timestamp.</summary>
     [JsonPropertyName("date_created")] public string? DateCreated { get; init; }
 
     /// <summary>RFC 3339 last-modification timestamp.</summary>
     [JsonPropertyName("date_updated")] public string? DateUpdated { get; init; }
-}
-
-/// <summary>List response for <c>GET /Calls/{sid}/Streams</c>.</summary>
-public sealed record StreamList : Page
-{
-    /// <summary>The page of Stream resources.</summary>
-    [JsonPropertyName("streams")] public List<Stream> Streams { get; init; } = new();
 }
 
 /// <summary>Body for <c>POST /Calls/{sid}/Streams</c>. <see cref="Url"/> is the wss:// endpoint.</summary>

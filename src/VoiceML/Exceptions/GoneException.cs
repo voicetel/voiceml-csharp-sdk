@@ -4,6 +4,6 @@ namespace VoiceML.Exceptions;
 public sealed class GoneException : ApiException
 {
     /// <summary>Construct with structured fields.</summary>
-    public GoneException(string message, int statusCode, object? code = null, object? body = null, string? moreInfo = null)
-        : base(message, statusCode, code, body, moreInfo) { }
+    public GoneException(string message, int statusCode, int? code = null, object? body = null, string? moreInfo = null, string? codeRaw = null, int? status = null)
+        : base(message, statusCode, code, body, moreInfo, codeRaw, status) { }
 }

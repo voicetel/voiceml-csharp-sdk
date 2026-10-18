@@ -79,8 +79,8 @@ public class SmokeTests
             // Form body
             var body = req.Content!.ReadAsStringAsync().Result;
             var form = ParseForm(body);
-            Assert.Equal("+18005550000", form["To"]);
-            Assert.Equal("+18005551234", form["From"]);
+            Assert.Equal("+14155550101", form["To"]);
+            Assert.Equal("+14155550100", form["From"]);
             Assert.Equal("https://example.com/twiml", form["Url"]);
             Assert.Equal("true", form["Record"]);
 
@@ -90,8 +90,8 @@ public class SmokeTests
         using var client = NewClient(handler);
         var call = await client.Calls.CreateAsync(new CreateCallRequest
         {
-            To = "+18005550000",
-            From = "+18005551234",
+            To = "+14155550101",
+            From = "+14155550100",
             Url = "https://example.com/twiml",
             Record = true,
         });
@@ -107,17 +107,14 @@ public class SmokeTests
     {
         var handler = new MockHandler(req =>
         {
-            var url = req.RequestUri!.ToString();
-            // Must contain BOTH literal `StartTime>=` and `StartTime<=` — not URL-escaped.
-            Assert.Contains("StartTime>=", url);
-            Assert.Contains("StartTime<=", url);
+            Assert.Equal($"https://voiceml.voicetel.com/2010-04-01/Accounts/{Sid}/Calls.json?StartTime%3C=2025-12-31T23%3A59%3A59Z&StartTime%3E=2025-01-01T00%3A00%3A00Z", req.RequestUri!.AbsoluteUri);
             return Reply(HttpStatusCode.OK, """{"calls":[],"page":0,"page_size":50}""");
         });
         using var client = NewClient(handler);
         var list = await client.Calls.ListAsync(new ListCallsParams
         {
-            StartTimeGte = "2025-01-01T00:00:00Z",
-            StartTimeLte = "2025-12-31T23:59:59Z",
+            StartTimeGt = "2025-01-01T00:00:00Z",
+            StartTimeLt = "2025-12-31T23:59:59Z",
         });
         Assert.NotNull(list);
         Assert.Empty(list.Calls);
@@ -306,7 +303,7 @@ public class SmokeTests
             AuthToken = "tok-from-authtoken",
             HttpClient = http,
         });
-        await client.Diagnostics.HealthAsync();
+        await client.Calls.ListAsync();
 
         var expected = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{Sid}:tok-from-authtoken"));
         Assert.Equal(expected, observedAuth);
@@ -328,7 +325,7 @@ public class SmokeTests
             ApiKey = "tok-from-apikey",
             HttpClient = http,
         });
-        await client.Diagnostics.HealthAsync();
+        await client.Calls.ListAsync();
 
         var expected = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{Sid}:tok-from-apikey"));
         Assert.Equal(expected, observedAuth);
@@ -338,7 +335,7 @@ public class SmokeTests
     public void ApiKey_AndAuthToken_BothSet_Throws()
     {
         var opts = new ClientOptions { AccountSid = Sid, ApiKey = "k", AuthToken = "t" };
-        Assert.Throws<ArgumentException>(() => new VoiceMLClient(opts));
+        Assert.Throws<ConfigurationException>(() => new VoiceMLClient(opts));
     }
 
     [Fact]
@@ -389,19 +386,20 @@ public class SmokeTests
             // PhoneNumber filter passed through
             Assert.Contains("PhoneNumber=", req.RequestUri.Query);
             var json = "{\"incoming_phone_numbers\":[" +
-                "{\"sid\":\"" + PhoneSid + "\",\"account_sid\":\"" + Sid + "\",\"phone_number\":\"+18005551234\",\"api_version\":\"2010-04-01\",\"uri\":\"/x\",\"capabilities\":{\"voice\":true,\"sms\":false,\"mms\":false,\"fax\":false}}" +
-                "],\"page\":0,\"page_size\":50,\"total\":1,\"first_page_uri\":\"/x\",\"uri\":\"/x\",\"next_page_uri\":null,\"previous_page_uri\":null}";
+                "{\"sid\":\"" + PhoneSid + "\",\"account_sid\":\"" + Sid + "\",\"phone_number\":\"+14155550100\",\"api_version\":\"2010-04-01\",\"uri\":\"/x\",\"capabilities\":{\"voice\":true,\"sms\":false,\"mms\":false,\"fax\":false}}" +
+                "],\"page\":0,\"page_size\":50,\"first_page_uri\":\"/x\",\"uri\":\"/x\",\"next_page_uri\":null,\"previous_page_uri\":null}";
             return Reply(HttpStatusCode.OK, json);
         });
         using var client = NewClient(handler);
         var list = await client.IncomingPhoneNumbers.ListAsync(
-            new ListIncomingPhoneNumbersOptions { PhoneNumber = "+18005551234" });
+            new ListIncomingPhoneNumbersOptions { PhoneNumber = "+14155550100" });
 
         Assert.Single(list.IncomingPhoneNumbers);
         var pn = list.IncomingPhoneNumbers[0];
+        Assert.NotNull(pn.Sid);
         Assert.StartsWith("PN", pn.Sid);
         Assert.Equal(34, pn.Sid.Length);
-        Assert.Equal("+18005551234", pn.PhoneNumber);
+        Assert.Equal("+14155550100", pn.PhoneNumber);
         Assert.NotNull(pn.Capabilities);
         Assert.True(pn.Capabilities!.Voice);
         Assert.False(pn.Capabilities.Sms);
@@ -416,16 +414,16 @@ public class SmokeTests
             Assert.EndsWith($"/Accounts/{Sid}/IncomingPhoneNumbers.json", req.RequestUri!.AbsolutePath);
             var body = req.Content!.ReadAsStringAsync().Result;
             var form = ParseForm(body);
-            Assert.Equal("+18005550000", form["PhoneNumber"]);
+            Assert.Equal("+14155550101", form["PhoneNumber"]);
             Assert.Equal("https://example.com/voice", form["VoiceUrl"]);
             Assert.Equal("POST", form["VoiceMethod"]);
-            var json = "{\"sid\":\"" + PhoneSid + "\",\"account_sid\":\"" + Sid + "\",\"phone_number\":\"+18005550000\",\"api_version\":\"2010-04-01\",\"uri\":\"/x\",\"capabilities\":{\"voice\":true,\"sms\":false,\"mms\":false,\"fax\":false}}";
+            var json = "{\"sid\":\"" + PhoneSid + "\",\"account_sid\":\"" + Sid + "\",\"phone_number\":\"+14155550101\",\"api_version\":\"2010-04-01\",\"uri\":\"/x\",\"capabilities\":{\"voice\":true,\"sms\":false,\"mms\":false,\"fax\":false}}";
             return Reply(HttpStatusCode.Created, json);
         });
         using var client = NewClient(handler);
         var pn = await client.IncomingPhoneNumbers.CreateAsync(new CreateIncomingPhoneNumberOptions
         {
-            PhoneNumber = "+18005550000",
+            PhoneNumber = "+14155550101",
             VoiceUrl = "https://example.com/voice",
             VoiceMethod = "POST",
         });
@@ -440,7 +438,7 @@ public class SmokeTests
         {
             Assert.Equal(HttpMethod.Get, req.Method);
             Assert.EndsWith($"/IncomingPhoneNumbers/{PhoneSid}.json", req.RequestUri!.AbsolutePath);
-            var json = "{\"sid\":\"" + PhoneSid + "\",\"account_sid\":\"" + Sid + "\",\"phone_number\":\"+18005551234\",\"api_version\":\"2010-04-01\",\"uri\":\"/x\",\"capabilities\":{\"voice\":true,\"sms\":false,\"mms\":false,\"fax\":false}}";
+            var json = "{\"sid\":\"" + PhoneSid + "\",\"account_sid\":\"" + Sid + "\",\"phone_number\":\"+14155550100\",\"api_version\":\"2010-04-01\",\"uri\":\"/x\",\"capabilities\":{\"voice\":true,\"sms\":false,\"mms\":false,\"fax\":false}}";
             return Reply(HttpStatusCode.OK, json);
         });
         using var client = NewClient(handler);
@@ -457,7 +455,7 @@ public class SmokeTests
             Assert.EndsWith($"/IncomingPhoneNumbers/{PhoneSid}.json", req.RequestUri!.AbsolutePath);
             var form = ParseForm(req.Content!.ReadAsStringAsync().Result);
             Assert.Equal("https://example.com/new-voice", form["VoiceUrl"]);
-            var json = "{\"sid\":\"" + PhoneSid + "\",\"account_sid\":\"" + Sid + "\",\"phone_number\":\"+18005551234\",\"api_version\":\"2010-04-01\",\"uri\":\"/x\",\"voice_url\":\"https://example.com/new-voice\",\"capabilities\":{\"voice\":true,\"sms\":false,\"mms\":false,\"fax\":false}}";
+            var json = "{\"sid\":\"" + PhoneSid + "\",\"account_sid\":\"" + Sid + "\",\"phone_number\":\"+14155550100\",\"api_version\":\"2010-04-01\",\"uri\":\"/x\",\"voice_url\":\"https://example.com/new-voice\",\"capabilities\":{\"voice\":true,\"sms\":false,\"mms\":false,\"fax\":false}}";
             return Reply(HttpStatusCode.OK, json);
         });
         using var client = NewClient(handler);
@@ -522,7 +520,7 @@ public class SmokeTests
         var handler = new MockHandler(_ =>
         {
             var json = "{\"sid\":\"" + PhoneSid + "\",\"account_sid\":\"" + Sid + "\"," +
-                "\"phone_number\":\"+18005551234\",\"api_version\":\"2010-04-01\",\"uri\":\"/x\"," +
+                "\"phone_number\":\"+14155550100\",\"api_version\":\"2010-04-01\",\"uri\":\"/x\"," +
                 "\"type\":\"local\",\"capabilities\":{\"voice\":true,\"sms\":false,\"mms\":false,\"fax\":false}}";
             return Reply(HttpStatusCode.OK, json);
         });
@@ -606,7 +604,7 @@ public class SmokeTests
             Assert.Contains("DateCreated<", url);
             Assert.Contains("DateCreated>", url);
             Assert.Contains("CallSid=" + CallSid, url);
-            return Reply(HttpStatusCode.OK, """{"recordings":[],"page":0,"page_size":50,"total":0}""");
+            return Reply(HttpStatusCode.OK, """{"recordings":[],"page":0,"page_size":50}""");
         });
         using var client = NewClient(handler);
         await client.Recordings.ListAsync(new ListRecordingsParams
@@ -663,8 +661,8 @@ public class SmokeTests
         {
             Assert.Equal(HttpMethod.Post, req.Method);
             var body = req.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
-            Assert.Contains("From=%2B18005550000", body);
-            Assert.Contains("To=%2B18005551234", body);
+            Assert.Contains("From=%2B14155550101", body);
+            Assert.Contains("To=%2B14155550100", body);
             return Reply(HttpStatusCode.Created, $$"""
                 {"call_sid":"CA{{new string('f', 32)}}","conference_sid":"{{confSid}}",
                  "account_sid":"{{Sid}}","status":"queued","api_version":"2010-04-01","uri":"/x"}
@@ -673,8 +671,8 @@ public class SmokeTests
         using var client = NewClient(handler);
         await client.Conferences.CreateParticipantAsync(confSid, new CreateParticipantRequest
         {
-            From = "+18005550000",
-            To = "+18005551234",
+            From = "+14155550101",
+            To = "+14155550100",
         });
     }
 
@@ -689,7 +687,7 @@ public class SmokeTests
             Assert.Contains("MessageDate=2026-05-01", url);
             Assert.Contains("MessageDate<=2026-05-02", url);
             Assert.Contains("MessageDate>=2026-04-30", url);
-            return Reply(HttpStatusCode.OK, """{"notifications":[],"page":0,"page_size":50,"total":0}""");
+            return Reply(HttpStatusCode.OK, """{"notifications":[],"page":0,"page_size":50}""");
         });
         using var client = NewClient(handler);
         await client.Calls.ListNotificationsAsync(callSid, new ListNotificationsParams
@@ -720,7 +718,7 @@ public class SmokeTests
                     {"calls":[
                         {"sid":"CA01","account_sid":"{{Sid}}","status":"completed","direction":"outbound-api","api_version":"2010-04-01","uri":"/x","date_created":"2025","date_updated":"2025"},
                         {"sid":"CA02","account_sid":"{{Sid}}","status":"completed","direction":"outbound-api","api_version":"2010-04-01","uri":"/x","date_created":"2025","date_updated":"2025"}
-                    ],"page":0,"page_size":2,"next_page_uri":"/2010-04-01/Accounts/{{Sid}}/Calls.json?Page=1&PageSize=2"}
+                    ],"page":0,"page_size":2,"next_page_uri":"/2010-04-01/Accounts/{{Sid}}/Calls.json?PageToken=PAnext&Page=1&PageSize=2"}
                     """);
             }
             // Page 1 — return 1 call + null next_page_uri
@@ -732,7 +730,7 @@ public class SmokeTests
         });
         using var client = NewClient(handler);
         var collected = new List<Call>();
-        await foreach (var call in client.Calls.IterateAsync(pageSize: 2))
+        await foreach (var call in client.Calls.IterateAsync(new ListCallsParams { PageSize = 2 }))
         {
             collected.Add(call);
         }
@@ -757,7 +755,7 @@ public class SmokeTests
                     {"conferences":[
                         {"sid":"CF01","account_sid":"{{Sid}}","friendly_name":"room-1","status":"in-progress","api_version":"2010-04-01","uri":"/x"},
                         {"sid":"CF02","account_sid":"{{Sid}}","friendly_name":"room-2","status":"completed","api_version":"2010-04-01","uri":"/x"}
-                    ],"page":0,"page_size":2,"next_page_uri":"/2010-04-01/Accounts/{{Sid}}/Conferences.json?Page=1&PageSize=2"}
+                    ],"page":0,"page_size":2,"next_page_uri":"/2010-04-01/Accounts/{{Sid}}/Conferences.json?PageToken=PAnext&Page=1&PageSize=2"}
                     """);
             }
             return Reply(HttpStatusCode.OK, $$"""
@@ -768,7 +766,7 @@ public class SmokeTests
         });
         using var client = NewClient(handler);
         var collected = new List<Conference>();
-        await foreach (var conf in client.Conferences.IterateAsync(pageSize: 2))
+        await foreach (var conf in client.Conferences.IterateAsync(new ListConferencesParams { PageSize = 2 }))
         {
             collected.Add(conf);
         }
@@ -793,7 +791,7 @@ public class SmokeTests
                     {"recordings":[
                         {"sid":"RE01","account_sid":"{{Sid}}","call_sid":"{{CallSid}}","status":"completed","uri":"/x"},
                         {"sid":"RE02","account_sid":"{{Sid}}","call_sid":"{{CallSid}}","status":"completed","uri":"/x"}
-                    ],"page":0,"page_size":2,"next_page_uri":"/2010-04-01/Accounts/{{Sid}}/Recordings.json?Page=1&PageSize=2"}
+                    ],"page":0,"page_size":2,"next_page_uri":"/2010-04-01/Accounts/{{Sid}}/Recordings.json?PageToken=PAnext&Page=1&PageSize=2"}
                     """);
             }
             return Reply(HttpStatusCode.OK, $$"""
@@ -804,7 +802,7 @@ public class SmokeTests
         });
         using var client = NewClient(handler);
         var collected = new List<Recording>();
-        await foreach (var rec in client.Recordings.IterateAsync(pageSize: 2))
+        await foreach (var rec in client.Recordings.IterateAsync(new ListRecordingsParams { PageSize = 2 }))
         {
             collected.Add(rec);
         }
@@ -829,7 +827,7 @@ public class SmokeTests
                     {"queues":[
                         {"sid":"QU01","account_sid":"{{Sid}}","friendly_name":"support","current_size":5,"max_size":100,"average_wait_time":30,"date_created":"2025","date_updated":"2025","uri":"/x"},
                         {"sid":"QU02","account_sid":"{{Sid}}","friendly_name":"sales","current_size":2,"max_size":50,"average_wait_time":15,"date_created":"2025","date_updated":"2025","uri":"/x"}
-                    ],"page":0,"page_size":2,"next_page_uri":"/2010-04-01/Accounts/{{Sid}}/Queues.json?Page=1&PageSize=2"}
+                    ],"page":0,"page_size":2,"next_page_uri":"/2010-04-01/Accounts/{{Sid}}/Queues.json?PageToken=PAnext&Page=1&PageSize=2"}
                     """);
             }
             return Reply(HttpStatusCode.OK, $$"""
@@ -840,7 +838,7 @@ public class SmokeTests
         });
         using var client = NewClient(handler);
         var collected = new List<Queue>();
-        await foreach (var q in client.Queues.IterateAsync(pageSize: 2))
+        await foreach (var q in client.Queues.IterateAsync(new ListPageParams { PageSize = 2 }))
         {
             collected.Add(q);
         }

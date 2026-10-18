@@ -9,11 +9,11 @@ namespace VoiceML.Models;
 public sealed record Balance
 {
     /// <summary>Owning Account SID.</summary>
-    [JsonPropertyName("account_sid")] public string AccountSid { get; init; } = "";
+    [JsonPropertyName("account_sid")] public string? AccountSid { get; init; }
 
     /// <summary>Balance as a decimal string (e.g. <c>"0.05"</c>). Property is
     /// <c>BalanceAmount</c> in C# to avoid colliding with the enclosing type name.</summary>
-    [JsonPropertyName("balance")] public string BalanceAmount { get; init; } = "";
+    [JsonPropertyName("balance")] public string? BalanceAmount { get; init; }
 
     /// <summary>Currency code (e.g. <c>USD</c>).</summary>
     [JsonPropertyName("currency")] public string? Currency { get; init; }

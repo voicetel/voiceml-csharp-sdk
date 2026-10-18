@@ -38,7 +38,7 @@ public sealed class AssistantsV1Resource
     /// <summary>Operations on <c>/v1/Policies</c> (read-only — list only).</summary>
     public AssistantsV1PoliciesResource Policies { get; }
 
-    public AssistantsV1Resource(Transport transport)
+    internal AssistantsV1Resource(Transport transport)
     {
         Assistants = new AssistantsV1AssistantsResource(transport);
         Tools = new AssistantsV1ToolsResource(transport);
@@ -56,8 +56,19 @@ public sealed class AssistantsV1Resource
 public sealed class AssistantsV1AssistantsResource
 {
     private readonly Transport _transport;
-    public AssistantsV1AssistantsResource(Transport transport) { _transport = transport; }
 
+    /// <summary>Fetch the /v1 page a list response links to next, following its
+    /// <see cref="VoiceV1Meta.NextPageUrl"/> verbatim — but only when its scheme and host
+    /// equal the configured product host, so credentials never go to a foreign host. Returns
+    /// <c>null</c> when <paramref name="page"/> is the last one.</summary>
+    public Task<T?> NextPageAsync<T>(T page, CancellationToken ct = default) where T : class, IV1PagedList
+        => string.IsNullOrEmpty(page.Meta?.NextPageUrl)
+            ? Task.FromResult<T?>(null)
+            : _transport.SendV1NextPageAsync<T>(page.Meta!.NextPageUrl!, ct);
+
+    internal AssistantsV1AssistantsResource(Transport transport) { _transport = transport; }
+
+    /// <summary>List assistants. Route: /v1/Assistants.</summary>
     public async Task<AssistantsV1AssistantList> ListAsync(ListAssistantsV1PageParams? filter = null, CancellationToken ct = default)
     {
         var p = filter ?? new ListAssistantsV1PageParams();
@@ -66,6 +77,7 @@ public sealed class AssistantsV1AssistantsResource
             ?? new AssistantsV1AssistantList();
     }
 
+    /// <summary>Create assistants. Route: /v1/Assistants.</summary>
     public async Task<AssistantsV1Assistant> CreateAsync(CreateAssistantRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<AssistantsV1Assistant>(HttpMethod.Post,
@@ -77,19 +89,21 @@ public sealed class AssistantsV1AssistantsResource
     public async Task<AssistantsV1AssistantWithToolsAndKnowledge> GetAsync(string assistantId, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<AssistantsV1AssistantWithToolsAndKnowledge>(HttpMethod.Get,
-            $"/v1/Assistants/{assistantId}", ct: ct).ConfigureAwait(false);
+            $"/v1/Assistants/{PathSegment.Encode(assistantId)}", ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on GET /v1/Assistants/{id}", 200);
     }
 
+    /// <summary>Update assistants. Route: /v1/Assistants/{PathSegment.Encode(assistantId)}.</summary>
     public async Task<AssistantsV1Assistant> UpdateAsync(string assistantId, UpdateAssistantRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<AssistantsV1Assistant>(HttpMethod.Put,
-            $"/v1/Assistants/{assistantId}", jsonBody: request, ct: ct).ConfigureAwait(false);
+            $"/v1/Assistants/{PathSegment.Encode(assistantId)}", jsonBody: request, ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on PUT /v1/Assistants/{id}", 200);
     }
 
+    /// <summary>Delete assistants. Route: /v1/Assistants/{PathSegment.Encode(assistantId)}.</summary>
     public Task DeleteAsync(string assistantId, CancellationToken ct = default) =>
-        _transport.SendNoContentAsync(HttpMethod.Delete, $"/v1/Assistants/{assistantId}", ct: ct);
+        _transport.SendNoContentAsync(HttpMethod.Delete, $"/v1/Assistants/{PathSegment.Encode(assistantId)}", ct: ct);
 
     /// <summary>Scope to a specific Assistant's <c>/Tools</c> attach/detach sub-resource.</summary>
     public AssistantsV1AssistantToolsScope Tools(string assistantId) => new(_transport, assistantId);
@@ -109,6 +123,15 @@ public sealed class AssistantsV1AssistantsResource
 public sealed class AssistantsV1AssistantToolsScope
 {
     private readonly Transport _transport;
+    /// <summary>Fetch the /v1 page a list response links to next, following its
+    /// <see cref="VoiceV1Meta.NextPageUrl"/> verbatim — but only when its scheme and host
+    /// equal the configured product host, so credentials never go to a foreign host. Returns
+    /// <c>null</c> when <paramref name="page"/> is the last one.</summary>
+    public Task<T?> NextPageAsync<T>(T page, CancellationToken ct = default) where T : class, IV1PagedList
+        => string.IsNullOrEmpty(page.Meta?.NextPageUrl)
+            ? Task.FromResult<T?>(null)
+            : _transport.SendV1NextPageAsync<T>(page.Meta!.NextPageUrl!, ct);
+
 
     /// <summary>The parent Assistant id this scope is bound to.</summary>
     public string AssistantId { get; }
@@ -119,11 +142,12 @@ public sealed class AssistantsV1AssistantToolsScope
         AssistantId = assistantId;
     }
 
-    private string BasePath => $"/v1/Assistants/{AssistantId}/Tools";
+    private string BasePath => $"/v1/Assistants/{PathSegment.Encode(AssistantId)}/Tools";
 
-    public async Task<AssistantsV1ToolList> ListAsync(ListAssistantsV1PageParams? filter = null, CancellationToken ct = default)
+    /// <summary>List assistant tools. Route: Assistant Tools Scope.</summary>
+    public async Task<AssistantsV1ToolList> ListAsync(AssistantsV1PageSizeParams? filter = null, CancellationToken ct = default)
     {
-        var p = filter ?? new ListAssistantsV1PageParams();
+        var p = filter ?? new AssistantsV1PageSizeParams();
         return await _transport.SendAsync<AssistantsV1ToolList>(HttpMethod.Get,
             BasePath, queryParams: p.ToQuery(), ct: ct).ConfigureAwait(false)
             ?? new AssistantsV1ToolList();
@@ -131,17 +155,26 @@ public sealed class AssistantsV1AssistantToolsScope
 
     /// <summary>Attach an existing Tool to this Assistant (no request body).</summary>
     public Task AttachAsync(string toolId, CancellationToken ct = default) =>
-        _transport.SendNoContentAsync(HttpMethod.Post, $"{BasePath}/{toolId}", ct: ct);
+        _transport.SendNoContentAsync(HttpMethod.Post, $"{BasePath}/{PathSegment.Encode(toolId)}", ct: ct);
 
     /// <summary>Detach a Tool from this Assistant.</summary>
     public Task DetachAsync(string toolId, CancellationToken ct = default) =>
-        _transport.SendNoContentAsync(HttpMethod.Delete, $"{BasePath}/{toolId}", ct: ct);
+        _transport.SendNoContentAsync(HttpMethod.Delete, $"{BasePath}/{PathSegment.Encode(toolId)}", ct: ct);
 }
 
 /// <summary>Operations on <c>/v1/Assistants/{id}/Knowledge</c> (list attached + attach/detach by knowledge id).</summary>
 public sealed class AssistantsV1AssistantKnowledgeScope
 {
     private readonly Transport _transport;
+    /// <summary>Fetch the /v1 page a list response links to next, following its
+    /// <see cref="VoiceV1Meta.NextPageUrl"/> verbatim — but only when its scheme and host
+    /// equal the configured product host, so credentials never go to a foreign host. Returns
+    /// <c>null</c> when <paramref name="page"/> is the last one.</summary>
+    public Task<T?> NextPageAsync<T>(T page, CancellationToken ct = default) where T : class, IV1PagedList
+        => string.IsNullOrEmpty(page.Meta?.NextPageUrl)
+            ? Task.FromResult<T?>(null)
+            : _transport.SendV1NextPageAsync<T>(page.Meta!.NextPageUrl!, ct);
+
 
     /// <summary>The parent Assistant id this scope is bound to.</summary>
     public string AssistantId { get; }
@@ -152,11 +185,12 @@ public sealed class AssistantsV1AssistantKnowledgeScope
         AssistantId = assistantId;
     }
 
-    private string BasePath => $"/v1/Assistants/{AssistantId}/Knowledge";
+    private string BasePath => $"/v1/Assistants/{PathSegment.Encode(AssistantId)}/Knowledge";
 
-    public async Task<AssistantsV1KnowledgeList> ListAsync(ListAssistantsV1PageParams? filter = null, CancellationToken ct = default)
+    /// <summary>List assistant knowledge. Route: Assistant Knowledge Scope.</summary>
+    public async Task<AssistantsV1KnowledgeList> ListAsync(AssistantsV1PageSizeParams? filter = null, CancellationToken ct = default)
     {
-        var p = filter ?? new ListAssistantsV1PageParams();
+        var p = filter ?? new AssistantsV1PageSizeParams();
         return await _transport.SendAsync<AssistantsV1KnowledgeList>(HttpMethod.Get,
             BasePath, queryParams: p.ToQuery(), ct: ct).ConfigureAwait(false)
             ?? new AssistantsV1KnowledgeList();
@@ -164,17 +198,26 @@ public sealed class AssistantsV1AssistantKnowledgeScope
 
     /// <summary>Attach an existing Knowledge source to this Assistant (no request body).</summary>
     public Task AttachAsync(string knowledgeId, CancellationToken ct = default) =>
-        _transport.SendNoContentAsync(HttpMethod.Post, $"{BasePath}/{knowledgeId}", ct: ct);
+        _transport.SendNoContentAsync(HttpMethod.Post, $"{BasePath}/{PathSegment.Encode(knowledgeId)}", ct: ct);
 
     /// <summary>Detach a Knowledge source from this Assistant.</summary>
     public Task DetachAsync(string knowledgeId, CancellationToken ct = default) =>
-        _transport.SendNoContentAsync(HttpMethod.Delete, $"{BasePath}/{knowledgeId}", ct: ct);
+        _transport.SendNoContentAsync(HttpMethod.Delete, $"{BasePath}/{PathSegment.Encode(knowledgeId)}", ct: ct);
 }
 
 /// <summary>Operations on <c>/v1/Assistants/{id}/Feedbacks</c> (list and create).</summary>
 public sealed class AssistantsV1AssistantFeedbacksScope
 {
     private readonly Transport _transport;
+    /// <summary>Fetch the /v1 page a list response links to next, following its
+    /// <see cref="VoiceV1Meta.NextPageUrl"/> verbatim — but only when its scheme and host
+    /// equal the configured product host, so credentials never go to a foreign host. Returns
+    /// <c>null</c> when <paramref name="page"/> is the last one.</summary>
+    public Task<T?> NextPageAsync<T>(T page, CancellationToken ct = default) where T : class, IV1PagedList
+        => string.IsNullOrEmpty(page.Meta?.NextPageUrl)
+            ? Task.FromResult<T?>(null)
+            : _transport.SendV1NextPageAsync<T>(page.Meta!.NextPageUrl!, ct);
+
 
     /// <summary>The parent Assistant id this scope is bound to.</summary>
     public string AssistantId { get; }
@@ -185,16 +228,18 @@ public sealed class AssistantsV1AssistantFeedbacksScope
         AssistantId = assistantId;
     }
 
-    private string BasePath => $"/v1/Assistants/{AssistantId}/Feedbacks";
+    private string BasePath => $"/v1/Assistants/{PathSegment.Encode(AssistantId)}/Feedbacks";
 
-    public async Task<AssistantsV1FeedbackList> ListAsync(ListAssistantsV1PageParams? filter = null, CancellationToken ct = default)
+    /// <summary>List assistant feedbacks. Route: Assistant Feedbacks Scope.</summary>
+    public async Task<AssistantsV1FeedbackList> ListAsync(AssistantsV1PageSizeParams? filter = null, CancellationToken ct = default)
     {
-        var p = filter ?? new ListAssistantsV1PageParams();
+        var p = filter ?? new AssistantsV1PageSizeParams();
         return await _transport.SendAsync<AssistantsV1FeedbackList>(HttpMethod.Get,
             BasePath, queryParams: p.ToQuery(), ct: ct).ConfigureAwait(false)
             ?? new AssistantsV1FeedbackList();
     }
 
+    /// <summary>Create assistant feedbacks. Route: Assistant Feedbacks Scope.</summary>
     public async Task<AssistantsV1Feedback> CreateAsync(CreateAssistantFeedbackRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<AssistantsV1Feedback>(HttpMethod.Post,
@@ -220,7 +265,7 @@ public sealed class AssistantsV1AssistantMessagesScope
         AssistantId = assistantId;
     }
 
-    private string BasePath => $"/v1/Assistants/{AssistantId}/Messages";
+    private string BasePath => $"/v1/Assistants/{PathSegment.Encode(AssistantId)}/Messages";
 
     /// <summary>Send a message to the Assistant. If <see cref="SendAssistantMessageRequest.SessionId"/>
     /// is omitted the server creates a fresh session keyed by the identity.</summary>
@@ -239,8 +284,18 @@ public sealed class AssistantsV1AssistantMessagesScope
 public sealed class AssistantsV1ToolsResource
 {
     private readonly Transport _transport;
-    public AssistantsV1ToolsResource(Transport transport) { _transport = transport; }
+    /// <summary>Fetch the /v1 page a list response links to next, following its
+    /// <see cref="VoiceV1Meta.NextPageUrl"/> verbatim — but only when its scheme and host
+    /// equal the configured product host, so credentials never go to a foreign host. Returns
+    /// <c>null</c> when <paramref name="page"/> is the last one.</summary>
+    public Task<T?> NextPageAsync<T>(T page, CancellationToken ct = default) where T : class, IV1PagedList
+        => string.IsNullOrEmpty(page.Meta?.NextPageUrl)
+            ? Task.FromResult<T?>(null)
+            : _transport.SendV1NextPageAsync<T>(page.Meta!.NextPageUrl!, ct);
 
+    internal AssistantsV1ToolsResource(Transport transport) { _transport = transport; }
+
+    /// <summary>List tools. Route: /v1/Tools.</summary>
     public async Task<AssistantsV1ToolList> ListAsync(ListAssistantsV1ToolsParams? filter = null, CancellationToken ct = default)
     {
         var p = filter ?? new ListAssistantsV1ToolsParams();
@@ -249,6 +304,7 @@ public sealed class AssistantsV1ToolsResource
             ?? new AssistantsV1ToolList();
     }
 
+    /// <summary>Create tools. Route: /v1/Tools.</summary>
     public async Task<AssistantsV1Tool> CreateAsync(CreateAssistantToolRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<AssistantsV1Tool>(HttpMethod.Post,
@@ -260,19 +316,21 @@ public sealed class AssistantsV1ToolsResource
     public async Task<AssistantsV1ToolWithPolicies> GetAsync(string toolId, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<AssistantsV1ToolWithPolicies>(HttpMethod.Get,
-            $"/v1/Tools/{toolId}", ct: ct).ConfigureAwait(false);
+            $"/v1/Tools/{PathSegment.Encode(toolId)}", ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on GET /v1/Tools/{id}", 200);
     }
 
+    /// <summary>Update tools. Route: /v1/Tools/{PathSegment.Encode(toolId)}.</summary>
     public async Task<AssistantsV1Tool> UpdateAsync(string toolId, UpdateAssistantToolRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<AssistantsV1Tool>(HttpMethod.Put,
-            $"/v1/Tools/{toolId}", jsonBody: request, ct: ct).ConfigureAwait(false);
+            $"/v1/Tools/{PathSegment.Encode(toolId)}", jsonBody: request, ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on PUT /v1/Tools/{id}", 200);
     }
 
+    /// <summary>Delete tools. Route: /v1/Tools/{PathSegment.Encode(toolId)}.</summary>
     public Task DeleteAsync(string toolId, CancellationToken ct = default) =>
-        _transport.SendNoContentAsync(HttpMethod.Delete, $"/v1/Tools/{toolId}", ct: ct);
+        _transport.SendNoContentAsync(HttpMethod.Delete, $"/v1/Tools/{PathSegment.Encode(toolId)}", ct: ct);
 }
 
 // ---- /v1/Knowledge (+ per-knowledge Status / Chunks scopes) ----------------
@@ -282,8 +340,18 @@ public sealed class AssistantsV1ToolsResource
 public sealed class AssistantsV1KnowledgeResource
 {
     private readonly Transport _transport;
-    public AssistantsV1KnowledgeResource(Transport transport) { _transport = transport; }
+    /// <summary>Fetch the /v1 page a list response links to next, following its
+    /// <see cref="VoiceV1Meta.NextPageUrl"/> verbatim — but only when its scheme and host
+    /// equal the configured product host, so credentials never go to a foreign host. Returns
+    /// <c>null</c> when <paramref name="page"/> is the last one.</summary>
+    public Task<T?> NextPageAsync<T>(T page, CancellationToken ct = default) where T : class, IV1PagedList
+        => string.IsNullOrEmpty(page.Meta?.NextPageUrl)
+            ? Task.FromResult<T?>(null)
+            : _transport.SendV1NextPageAsync<T>(page.Meta!.NextPageUrl!, ct);
 
+    internal AssistantsV1KnowledgeResource(Transport transport) { _transport = transport; }
+
+    /// <summary>List knowledge. Route: /v1/Knowledge.</summary>
     public async Task<AssistantsV1KnowledgeList> ListAsync(ListAssistantsV1KnowledgeParams? filter = null, CancellationToken ct = default)
     {
         var p = filter ?? new ListAssistantsV1KnowledgeParams();
@@ -292,6 +360,7 @@ public sealed class AssistantsV1KnowledgeResource
             ?? new AssistantsV1KnowledgeList();
     }
 
+    /// <summary>Create knowledge. Route: /v1/Knowledge.</summary>
     public async Task<AssistantsV1Knowledge> CreateAsync(CreateAssistantKnowledgeRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<AssistantsV1Knowledge>(HttpMethod.Post,
@@ -299,22 +368,25 @@ public sealed class AssistantsV1KnowledgeResource
         return r ?? throw new ApiException("empty body on POST /v1/Knowledge", 201);
     }
 
+    /// <summary>Fetch knowledge. Route: /v1/Knowledge/{PathSegment.Encode(knowledgeId)}.</summary>
     public async Task<AssistantsV1Knowledge> GetAsync(string knowledgeId, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<AssistantsV1Knowledge>(HttpMethod.Get,
-            $"/v1/Knowledge/{knowledgeId}", ct: ct).ConfigureAwait(false);
+            $"/v1/Knowledge/{PathSegment.Encode(knowledgeId)}", ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on GET /v1/Knowledge/{id}", 200);
     }
 
+    /// <summary>Update knowledge. Route: /v1/Knowledge/{PathSegment.Encode(knowledgeId)}.</summary>
     public async Task<AssistantsV1Knowledge> UpdateAsync(string knowledgeId, UpdateAssistantKnowledgeRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<AssistantsV1Knowledge>(HttpMethod.Put,
-            $"/v1/Knowledge/{knowledgeId}", jsonBody: request, ct: ct).ConfigureAwait(false);
+            $"/v1/Knowledge/{PathSegment.Encode(knowledgeId)}", jsonBody: request, ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on PUT /v1/Knowledge/{id}", 200);
     }
 
+    /// <summary>Delete knowledge. Route: /v1/Knowledge/{PathSegment.Encode(knowledgeId)}.</summary>
     public Task DeleteAsync(string knowledgeId, CancellationToken ct = default) =>
-        _transport.SendNoContentAsync(HttpMethod.Delete, $"/v1/Knowledge/{knowledgeId}", ct: ct);
+        _transport.SendNoContentAsync(HttpMethod.Delete, $"/v1/Knowledge/{PathSegment.Encode(knowledgeId)}", ct: ct);
 
     /// <summary>Scope to a specific Knowledge source's <c>/Status</c> sub-resource (singleton).</summary>
     public AssistantsV1KnowledgeStatusScope Status(string knowledgeId) => new(_transport, knowledgeId);
@@ -337,10 +409,11 @@ public sealed class AssistantsV1KnowledgeStatusScope
         KnowledgeId = knowledgeId;
     }
 
+    /// <summary>Fetch knowledge status. Route: /v1/Knowledge/{PathSegment.Encode(KnowledgeId)}/Status.</summary>
     public async Task<AssistantsV1KnowledgeStatus> FetchAsync(CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<AssistantsV1KnowledgeStatus>(HttpMethod.Get,
-            $"/v1/Knowledge/{KnowledgeId}/Status", ct: ct).ConfigureAwait(false);
+            $"/v1/Knowledge/{PathSegment.Encode(KnowledgeId)}/Status", ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on GET /v1/Knowledge/{id}/Status", 200);
     }
 }
@@ -349,6 +422,15 @@ public sealed class AssistantsV1KnowledgeStatusScope
 public sealed class AssistantsV1KnowledgeChunksScope
 {
     private readonly Transport _transport;
+    /// <summary>Fetch the /v1 page a list response links to next, following its
+    /// <see cref="VoiceV1Meta.NextPageUrl"/> verbatim — but only when its scheme and host
+    /// equal the configured product host, so credentials never go to a foreign host. Returns
+    /// <c>null</c> when <paramref name="page"/> is the last one.</summary>
+    public Task<T?> NextPageAsync<T>(T page, CancellationToken ct = default) where T : class, IV1PagedList
+        => string.IsNullOrEmpty(page.Meta?.NextPageUrl)
+            ? Task.FromResult<T?>(null)
+            : _transport.SendV1NextPageAsync<T>(page.Meta!.NextPageUrl!, ct);
+
 
     /// <summary>The parent Knowledge id this scope is bound to.</summary>
     public string KnowledgeId { get; }
@@ -359,11 +441,12 @@ public sealed class AssistantsV1KnowledgeChunksScope
         KnowledgeId = knowledgeId;
     }
 
-    public async Task<AssistantsV1KnowledgeChunkList> ListAsync(ListAssistantsV1PageParams? filter = null, CancellationToken ct = default)
+    /// <summary>List knowledge chunks. Route: /v1/Knowledge/{PathSegment.Encode(KnowledgeId)}/Chunks.</summary>
+    public async Task<AssistantsV1KnowledgeChunkList> ListAsync(AssistantsV1PageSizeParams? filter = null, CancellationToken ct = default)
     {
-        var p = filter ?? new ListAssistantsV1PageParams();
+        var p = filter ?? new AssistantsV1PageSizeParams();
         return await _transport.SendAsync<AssistantsV1KnowledgeChunkList>(HttpMethod.Get,
-            $"/v1/Knowledge/{KnowledgeId}/Chunks", queryParams: p.ToQuery(), ct: ct).ConfigureAwait(false)
+            $"/v1/Knowledge/{PathSegment.Encode(KnowledgeId)}/Chunks", queryParams: p.ToQuery(), ct: ct).ConfigureAwait(false)
             ?? new AssistantsV1KnowledgeChunkList();
     }
 }
@@ -375,20 +458,31 @@ public sealed class AssistantsV1KnowledgeChunksScope
 public sealed class AssistantsV1SessionsResource
 {
     private readonly Transport _transport;
-    public AssistantsV1SessionsResource(Transport transport) { _transport = transport; }
+    /// <summary>Fetch the /v1 page a list response links to next, following its
+    /// <see cref="VoiceV1Meta.NextPageUrl"/> verbatim — but only when its scheme and host
+    /// equal the configured product host, so credentials never go to a foreign host. Returns
+    /// <c>null</c> when <paramref name="page"/> is the last one.</summary>
+    public Task<T?> NextPageAsync<T>(T page, CancellationToken ct = default) where T : class, IV1PagedList
+        => string.IsNullOrEmpty(page.Meta?.NextPageUrl)
+            ? Task.FromResult<T?>(null)
+            : _transport.SendV1NextPageAsync<T>(page.Meta!.NextPageUrl!, ct);
 
-    public async Task<AssistantsV1SessionList> ListAsync(ListAssistantsV1PageParams? filter = null, CancellationToken ct = default)
+    internal AssistantsV1SessionsResource(Transport transport) { _transport = transport; }
+
+    /// <summary>List sessions. Route: /v1/Sessions.</summary>
+    public async Task<AssistantsV1SessionList> ListAsync(AssistantsV1PageSizeParams? filter = null, CancellationToken ct = default)
     {
-        var p = filter ?? new ListAssistantsV1PageParams();
+        var p = filter ?? new AssistantsV1PageSizeParams();
         return await _transport.SendAsync<AssistantsV1SessionList>(HttpMethod.Get,
             "/v1/Sessions", queryParams: p.ToQuery(), ct: ct).ConfigureAwait(false)
             ?? new AssistantsV1SessionList();
     }
 
+    /// <summary>Fetch sessions. Route: /v1/Sessions/{PathSegment.Encode(sessionId)}.</summary>
     public async Task<AssistantsV1Session> GetAsync(string sessionId, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<AssistantsV1Session>(HttpMethod.Get,
-            $"/v1/Sessions/{sessionId}", ct: ct).ConfigureAwait(false);
+            $"/v1/Sessions/{PathSegment.Encode(sessionId)}", ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on GET /v1/Sessions/{id}", 200);
     }
 
@@ -400,6 +494,15 @@ public sealed class AssistantsV1SessionsResource
 public sealed class AssistantsV1SessionMessagesScope
 {
     private readonly Transport _transport;
+    /// <summary>Fetch the /v1 page a list response links to next, following its
+    /// <see cref="VoiceV1Meta.NextPageUrl"/> verbatim — but only when its scheme and host
+    /// equal the configured product host, so credentials never go to a foreign host. Returns
+    /// <c>null</c> when <paramref name="page"/> is the last one.</summary>
+    public Task<T?> NextPageAsync<T>(T page, CancellationToken ct = default) where T : class, IV1PagedList
+        => string.IsNullOrEmpty(page.Meta?.NextPageUrl)
+            ? Task.FromResult<T?>(null)
+            : _transport.SendV1NextPageAsync<T>(page.Meta!.NextPageUrl!, ct);
+
 
     /// <summary>The parent Session id this scope is bound to.</summary>
     public string SessionId { get; }
@@ -410,11 +513,12 @@ public sealed class AssistantsV1SessionMessagesScope
         SessionId = sessionId;
     }
 
-    public async Task<AssistantsV1MessageList> ListAsync(ListAssistantsV1PageParams? filter = null, CancellationToken ct = default)
+    /// <summary>List session messages. Route: /v1/Sessions/{PathSegment.Encode(SessionId)}/Messages.</summary>
+    public async Task<AssistantsV1MessageList> ListAsync(AssistantsV1PageSizeParams? filter = null, CancellationToken ct = default)
     {
-        var p = filter ?? new ListAssistantsV1PageParams();
+        var p = filter ?? new AssistantsV1PageSizeParams();
         return await _transport.SendAsync<AssistantsV1MessageList>(HttpMethod.Get,
-            $"/v1/Sessions/{SessionId}/Messages", queryParams: p.ToQuery(), ct: ct).ConfigureAwait(false)
+            $"/v1/Sessions/{PathSegment.Encode(SessionId)}/Messages", queryParams: p.ToQuery(), ct: ct).ConfigureAwait(false)
             ?? new AssistantsV1MessageList();
     }
 }
@@ -426,8 +530,18 @@ public sealed class AssistantsV1SessionMessagesScope
 public sealed class AssistantsV1PoliciesResource
 {
     private readonly Transport _transport;
-    public AssistantsV1PoliciesResource(Transport transport) { _transport = transport; }
+    /// <summary>Fetch the /v1 page a list response links to next, following its
+    /// <see cref="VoiceV1Meta.NextPageUrl"/> verbatim — but only when its scheme and host
+    /// equal the configured product host, so credentials never go to a foreign host. Returns
+    /// <c>null</c> when <paramref name="page"/> is the last one.</summary>
+    public Task<T?> NextPageAsync<T>(T page, CancellationToken ct = default) where T : class, IV1PagedList
+        => string.IsNullOrEmpty(page.Meta?.NextPageUrl)
+            ? Task.FromResult<T?>(null)
+            : _transport.SendV1NextPageAsync<T>(page.Meta!.NextPageUrl!, ct);
 
+    internal AssistantsV1PoliciesResource(Transport transport) { _transport = transport; }
+
+    /// <summary>List policies. Route: /v1/Policies.</summary>
     public async Task<AssistantsV1PolicyList> ListAsync(ListAssistantsV1PoliciesParams? filter = null, CancellationToken ct = default)
     {
         var p = filter ?? new ListAssistantsV1PoliciesParams();

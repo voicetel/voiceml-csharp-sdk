@@ -1,10 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -14,41 +15,56 @@ using VoiceML.Exceptions;
 namespace VoiceML;
 
 /// <summary>HTTP transport for the VoiceML API. Owns (or borrows) a single <see cref="HttpClient"/>,
-/// builds Basic auth headers, serializes form bodies, deserializes JSON, and runs retry/backoff
-/// on the retryable statuses (429, 500, 502, 503, 504) and transient transport errors.
+/// builds Basic auth headers, serializes form bodies, deserializes JSON, and runs retry/backoff.
 /// <para>This type is internal — the public surface goes through <see cref="VoiceMLClient"/>.</para>
+/// <para>Retry policy: idempotent requests (GET/HEAD/PUT/DELETE) retry on 429, 500, 502, 503, 504
+/// and on any transport error. Non-idempotent requests (POST/PATCH) retry only on 429 and on
+/// connection-establishment failures where the request provably never left the machine (DNS
+/// failure, connection refused, connect timeout, TLS handshake failure) — never on 5xx, read
+/// timeouts or connection resets, which could duplicate a call or SMS. <c>Retry-After</c> is
+/// honoured in both delta-seconds and HTTP-date form; when it exceeds the 60-second cap the SDK
+/// raises the rate-limit error immediately instead of sleeping. Exponential backoff with full
+/// jitter (0.5 s base, 8 s ceiling) is used when the server does not direct a wait.</para>
 /// </summary>
-public sealed class Transport : IDisposable
+internal sealed class Transport : IDisposable
 {
-    private static readonly HashSet<int> RetryableStatuses = new() { 429, 500, 502, 503, 504 };
+    private static readonly TimeSpan RetryAfterCap = TimeSpan.FromSeconds(60);
+
+    private static readonly TimeSpan BackoffBase = TimeSpan.FromSeconds(0.5);
+
+    private static readonly TimeSpan BackoffCeiling = TimeSpan.FromSeconds(8);
 
     /// <summary>Shared <see cref="JsonSerializerOptions"/> used for all (de)serialization.
     /// Configured to ignore null fields when writing (so optional request fields drop out)
-    /// and to read snake_case wire shape via <c>[JsonPropertyName]</c> attributes on models.</summary>
-    public static readonly JsonSerializerOptions JsonOptions = new()
+    /// and to read snake_case wire names via <c>[JsonPropertyName]</c> attributes on models.</summary>
+    internal static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = false,
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
         WriteIndented = false,
     };
 
+    /// <summary>Test hook that replaces the backoff delay sleep, so retry
+    /// tests run without wall-clock waits. Not set in production.</summary>
+    internal static Func<TimeSpan, CancellationToken, Task>? DelayOverride = null;
+
     private readonly HttpClient _http;
     private readonly bool _ownsClient;
     private readonly string _baseUrl;
     private readonly string _accountSid;
-    private readonly string _basicAuthHeader;
+    private readonly string? _basicAuthHeader;
     private readonly int _maxRetries;
     private readonly string _userAgent;
     private readonly Action<string>? _logger;
 
     /// <summary>The configured AccountSid. Resources need this to build URL paths.</summary>
-    public string AccountSid => _accountSid;
+    internal string AccountSid => _accountSid;
 
     /// <summary>The configured server base URL (no trailing slash).</summary>
-    public string BaseUrl => _baseUrl;
+    internal string BaseUrl => _baseUrl;
 
     /// <summary>Construct from validated <see cref="ClientOptions"/>.</summary>
-    public Transport(ClientOptions options)
+    internal Transport(ClientOptions options)
     {
         options.Validate();
         _accountSid = options.AccountSid;
@@ -64,15 +80,26 @@ public sealed class Transport : IDisposable
         }
         else
         {
-            _http = new HttpClient
+            // A pooled-connection lifetime lets DNS changes take effect for long-lived
+            // singleton clients; automatic redirects are disabled so binary fetches
+            // (recording audio, export archives) can apply the SDK redirect policy
+            // manually: strip Authorization when the host or scheme changes and refuse
+            // an https -> http downgrade.
+            var handler = new SocketsHttpHandler
+            {
+                PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+                AllowAutoRedirect = false,
+                AutomaticDecompression = DecompressionMethods.All,
+            };
+            _http = new HttpClient(handler, disposeHandler: true)
             {
                 Timeout = options.Timeout,
             };
             _ownsClient = true;
         }
 
-        // Pre-compute the Authorization header. Bytes used to be re-encoded per request;
-        // since AccountSid + ApiKey are immutable here, do it once.
+        // Pre-compute the Authorization header. AccountSid + credential are immutable
+        // here, so encode the Basic pair once.
         var raw = $"{options.AccountSid}:{options.ResolvedCredential}";
         _basicAuthHeader = "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes(raw));
     }
@@ -100,21 +127,24 @@ public sealed class Transport : IDisposable
     /// (<c>conversations.voicetel.com</c> / <c>messaging.voicetel.com</c>) without each resource
     /// needing to know its own host. The returned transport does not own the HTTP client and must
     /// not be disposed independently.</summary>
-    public Transport WithBaseUrl(string baseUrl) => new(this, baseUrl);
+    internal Transport WithBaseUrl(string baseUrl) => new(this, baseUrl);
 
     /// <summary>Send a request and deserialize the JSON response into <typeparamref name="T"/>.
     /// <paramref name="formBody"/> is form-urlencoded; <paramref name="jsonBody"/> is JSON.
-    /// Pass at most one. Use <see cref="SendNoContentAsync"/> when the endpoint returns no body
-    /// (e.g. DELETE).</summary>
-    public async Task<T?> SendAsync<T>(
+    /// Pass at most one. Pass <paramref name="sendAuth"/><c> = false</c> for endpoints the spec
+    /// declares <c>security: []</c> on. Use <see cref="SendNoContentAsync"/> when the endpoint
+    /// returns no body (e.g. DELETE).</summary>
+    internal async Task<T?> SendAsync<T>(
         HttpMethod method,
         string path,
         IEnumerable<KeyValuePair<string, string?>>? queryParams = null,
         IEnumerable<KeyValuePair<string, string?>>? formBody = null,
         object? jsonBody = null,
+        bool sendAuth = true,
         CancellationToken ct = default)
     {
-        using var response = await SendCoreAsync(method, path, queryParams, formBody, jsonBody, ct).ConfigureAwait(false);
+        var url = BuildUrl(path, queryParams);
+        using var response = await SendCoreAsync(method, url, formBody, jsonBody, sendAuth, ct).ConfigureAwait(false);
         var content = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
 
         if (string.IsNullOrEmpty(content))
@@ -125,134 +155,274 @@ public sealed class Transport : IDisposable
         {
             return JsonSerializer.Deserialize<T>(content, JsonOptions);
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
             throw new ApiException(
-                $"non-JSON success response: {Truncate(content, 200)}",
+                $"could not decode response as {typeof(T).Name}: {Truncate(content, 200)}",
                 (int)response.StatusCode,
-                code: null,
-                body: content);
+                body: content,
+                inner: ex);
         }
     }
 
     /// <summary>Send a request and discard the response body. Throws on non-2xx as usual.</summary>
-    public async Task SendNoContentAsync(
+    internal async Task SendNoContentAsync(
         HttpMethod method,
         string path,
         IEnumerable<KeyValuePair<string, string?>>? queryParams = null,
         IEnumerable<KeyValuePair<string, string?>>? formBody = null,
         object? jsonBody = null,
+        bool sendAuth = true,
         CancellationToken ct = default)
     {
-        using var response = await SendCoreAsync(method, path, queryParams, formBody, jsonBody, ct).ConfigureAwait(false);
-        // body already drained by SendCoreAsync's error path on non-2xx; on 2xx just ignore.
+        var url = BuildUrl(path, queryParams);
+        using var response = await SendCoreAsync(method, url, formBody, jsonBody, sendAuth, ct).ConfigureAwait(false);
     }
 
-    /// <summary>Fetch a binary payload (audio/wav recordings). Follows the single 302→presigned
-    /// redirect that <c>GET /Recordings/{sid}.wav</c> issues when the audio has been archived to S3.
-    /// Returns the final status, bytes, and headers.</summary>
-    public async Task<(int Status, byte[] Bytes, HttpResponseHeaders Headers, HttpContentHeaders ContentHeaders)> FetchBytesAsync(
-        string path, CancellationToken ct = default)
+    /// <summary>Fetch a page by its <c>next_page_uri</c> (the Twilio-compatible 2010-04-01
+    /// pagination envelope). The URI is relative (path + query); it is resolved against the
+    /// scheme and host this transport is configured with.</summary>
+    internal async Task<T?> SendPageUriAsync<T>(string pageUri, CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(pageUri))
+        {
+            throw new VoiceMLException("next page URI is empty");
+        }
+        var absolute = ResolveAgainstBase(pageUri);
+        using var response = await SendCoreAsync(HttpMethod.Get, absolute, formBody: null, jsonBody: null, sendAuth: true, ct).ConfigureAwait(false);
+        return await ReadSuccessBodyAsync<T>(response, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Fetch a <c>/v1</c> list page by its absolute <c>meta.next_page_url</c>. The URL's
+    /// scheme and host must equal this transport's configured product host; otherwise the SDK
+    /// refuses the request so credentials are never sent to a foreign host.</summary>
+    internal async Task<T?> SendV1NextPageAsync<T>(string nextPageUrl, CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(nextPageUrl))
+        {
+            throw new VoiceMLException("next_page_url is empty");
+        }
+        var absolute = RequireSameHost(nextPageUrl);
+        using var response = await SendCoreAsync(HttpMethod.Get, absolute, formBody: null, jsonBody: null, sendAuth: true, ct).ConfigureAwait(false);
+        return await ReadSuccessBodyAsync<T>(response, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Fetch a binary payload (recording WAV audio, export archives). Follows up to five
+    /// redirects manually: the <c>Authorization</c> header is stripped whenever the redirect
+    /// target's host or scheme differs from the previous hop, and an <c>https</c> → <c>http</c>
+    /// downgrade is refused. Returns the final status, bytes, and headers.</summary>
+    internal async Task<(int Status, byte[] Bytes, HttpResponseHeaders Headers, HttpContentHeaders ContentHeaders, bool ViaRedirect)> FetchBytesAsync(
+        string path, bool sendAuth = true, CancellationToken ct = default)
     {
         var url = BuildUrl(path, queryParams: null);
-        using var req = new HttpRequestMessage(HttpMethod.Get, url);
-        ApplyHeaders(req);
-        using var response = await _http.SendAsync(req, ct).ConfigureAwait(false);
-        if (!response.IsSuccessStatusCode)
+        var current = url;
+        var sendAuthThisHop = sendAuth;
+        const int maxRedirects = 5;
+
+        for (var hop = 0; ; hop++)
         {
-            await ThrowFromResponseAsync(response, ct).ConfigureAwait(false);
+            using var response = await SendCoreAsync(HttpMethod.Get, current, null, null,
+                sendAuthThisHop, ct, binary: true).ConfigureAwait(false);
+
+            if ((int)response.StatusCode is >= 300 and < 400)
+            {
+                var location = response.Headers.Location;
+                var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+                if (location is null)
+                {
+                    throw new ApiException(
+                        $"redirect without Location header on {current}", (int)HttpStatusCode.Redirect, body: body);
+                }
+                if (hop >= maxRedirects)
+                {
+                    throw new ApiException(
+                        $"too many redirects while fetching {path}", 0, body: body);
+                }
+                var next = location.IsAbsoluteUri ? location.AbsoluteUri : new Uri(new Uri(current), location).AbsoluteUri;
+                var prevUri = new Uri(current);
+                var nextUri = new Uri(next);
+                if (nextUri.Scheme is not ("https" or "http") ||
+                    (prevUri.Scheme == "https" && nextUri.Scheme == "http"))
+                {
+                    throw new ApiException(
+                        $"refusing to follow redirect from https to http while fetching {path}", 0);
+                }
+                if (!string.Equals(prevUri.Host, nextUri.Host, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(prevUri.Scheme, nextUri.Scheme, StringComparison.OrdinalIgnoreCase)
+                    || prevUri.Port != nextUri.Port)
+                {
+                    // Cross-origin hop: never forward credentials.
+                    sendAuthThisHop = false;
+                }
+                current = next;
+                continue;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var ex = await BuildExceptionAsync(response, ct).ConfigureAwait(false);
+                response.Dispose();
+                throw ex;
+            }
+            var bytes = await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
+            var result = ((int)response.StatusCode, bytes, response.Headers, response.Content.Headers, hop > 0);
+            return result;
         }
-        var bytes = await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
-        return ((int)response.StatusCode, bytes, response.Headers, response.Content.Headers);
+    }
+
+    private static async Task<T?> ReadSuccessBodyAsync<T>(HttpResponseMessage response, CancellationToken ct)
+    {
+        var content = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        if (string.IsNullOrEmpty(content))
+        {
+            return default;
+        }
+        try
+        {
+            return JsonSerializer.Deserialize<T>(content, JsonOptions);
+        }
+        catch (JsonException ex)
+        {
+            throw new ApiException(
+                $"could not decode response as {typeof(T).Name}: {Truncate(content, 200)}",
+                (int)response.StatusCode,
+                body: content,
+                inner: ex);
+        }
     }
 
     private async Task<HttpResponseMessage> SendCoreAsync(
         HttpMethod method,
-        string path,
-        IEnumerable<KeyValuePair<string, string?>>? queryParams,
+        string url,
         IEnumerable<KeyValuePair<string, string?>>? formBody,
         object? jsonBody,
-        CancellationToken ct)
+        bool sendAuth,
+        CancellationToken ct,
+        bool binary = false)
     {
         if (formBody is not null && jsonBody is not null)
         {
             throw new ArgumentException("formBody and jsonBody are mutually exclusive");
         }
 
-        var url = BuildUrl(path, queryParams);
-        Exception? lastTransportEx = null;
+        var idempotent = IsIdempotent(method);
+        // Materialize once so each retry sends exactly the same form, even when the
+        // caller supplied a one-shot sequence. Validation also runs before allocation.
+        var form = formBody?.ToArray();
 
-        for (var attempt = 0; attempt <= _maxRetries; attempt++)
+        for (var attempt = 0; ; attempt++)
         {
-            var req = BuildRequest(method, url, formBody, jsonBody);
-            HttpResponseMessage response;
+            HttpResponseMessage? response = null;
+            Exception? failure = null;
+            var retryFailure = false;
+            var req = BuildRequest(method, url, form, jsonBody, sendAuth, binary);
             try
             {
                 response = await _http.SendAsync(req, ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
-                req.Dispose();
+                // Caller cancellation propagates unchanged and is never retried.
                 throw;
+            }
+            catch (OperationCanceledException ex)
+            {
+                // HttpClient.Timeout elapses without the caller's token being cancelled.
+                failure = new VoiceMLTimeoutException(
+                    $"request timed out after {_http.Timeout.TotalSeconds:0.##}s: {method} {url}", ex);
+                retryFailure = idempotent;
+                _logger?.Invoke($"timeout on attempt {attempt + 1}: {ex.Message}");
             }
             catch (HttpRequestException ex)
             {
-                req.Dispose();
-                lastTransportEx = ex;
-                _logger?.Invoke($"transport error on attempt {attempt + 1}: {ex.Message}");
-                if (attempt >= _maxRetries)
-                {
-                    throw new ApiException(
-                        $"transport error after {attempt + 1} attempts: {ex.Message}",
-                        statusCode: 0,
-                        inner: ex);
-                }
-                await BackoffAsync(attempt, null, ct).ConfigureAwait(false);
-                continue;
+                var establishment = IsConnectionEstablishmentFailure(ex);
+                failure = new ApiException(
+                    $"transport error on attempt {attempt + 1}: {ex.Message}",
+                    statusCode: 0,
+                    inner: ex);
+                // Establishment failures prove the request never went out, so they are
+                // safe to retry even for POST/PATCH. Everything else (write error, read
+                // error, connection reset mid-flight) is retried for idempotent verbs only.
+                retryFailure = establishment || idempotent;
+                _logger?.Invoke($"transport error on attempt {attempt + 1} ({(establishment ? "connection establishment" : "in-flight")}): {ex.Message}");
             }
             finally
             {
-                // We must NOT dispose req here on success — HttpClient is done with it once SendAsync returns,
-                // but disposing it disposes the content stream we already consumed. Reaching this point we
-                // either threw above or have a response; the response now owns the lifecycle.
+                // The response content is buffered by SendAsync (ResponseContentRead), so
+                // the request can be disposed on every path.
+                req.Dispose();
             }
 
-            var statusCode = (int)response.StatusCode;
-            if (RetryableStatuses.Contains(statusCode) && attempt < _maxRetries)
+            if (failure is not null)
             {
-                _logger?.Invoke($"retryable {statusCode} on attempt {attempt + 1}, backing off");
-                await BackoffAsync(attempt, response, ct).ConfigureAwait(false);
-                response.Dispose();
+                if (attempt >= _maxRetries || !retryFailure)
+                {
+                    throw failure;
+                }
+                await DelayAsync(attempt, serverDirected: null, ct).ConfigureAwait(false);
                 continue;
             }
 
-            if (!response.IsSuccessStatusCode)
+            var statusCode = (int)response!.StatusCode;
+            if (IsRetryableStatus(statusCode, idempotent) && attempt < _maxRetries)
             {
-                await ThrowFromResponseAsync(response, ct).ConfigureAwait(false);
+                var retryAfter = ParseRetryAfter(response);
+                if (retryAfter > RetryAfterCap)
+                {
+                    // The server asked for a longer wait than the SDK will honour — surface
+                    // the rate-limit error immediately instead of sleeping.
+                    var ex = await BuildExceptionAsync(response, ct).ConfigureAwait(false);
+                    response.Dispose();
+                    throw ex;
+                }
+                _logger?.Invoke($"retryable {statusCode} on attempt {attempt + 1}, backing off");
+                await DrainAsync(response, ct).ConfigureAwait(false);
+                response.Dispose();
+                await DelayAsync(attempt, retryAfter, ct).ConfigureAwait(false);
+                continue;
+            }
+
+            if (!response.IsSuccessStatusCode && !(binary && (int)response.StatusCode is >= 300 and < 400))
+            {
+                var ex = await BuildExceptionAsync(response, ct).ConfigureAwait(false);
+                response.Dispose();
+                throw ex;
             }
             return response;
         }
-
-        // Unreachable — the loop either returns or throws.
-        throw new ApiException(
-            $"retry loop exhausted ({_maxRetries + 1} attempts)",
-            statusCode: 0,
-            inner: lastTransportEx ?? new InvalidOperationException("retry loop exhausted"));
     }
+
+    private static bool IsIdempotent(HttpMethod method) =>
+        method == HttpMethod.Get || method == HttpMethod.Head
+            || method == HttpMethod.Put || method == HttpMethod.Delete;
+
+    private static bool IsRetryableStatus(int statusCode, bool idempotent) =>
+        idempotent
+            ? statusCode is 429 or 500 or 502 or 503 or 504
+            : statusCode == 429;
+
+    private static bool IsConnectionEstablishmentFailure(HttpRequestException ex) =>
+        ex.HttpRequestError is HttpRequestError.NameResolutionError
+            or HttpRequestError.SecureConnectionError
+        || (ex.HttpRequestError == HttpRequestError.ConnectionError && ex.InnerException is SocketException se
+            && se.SocketErrorCode is SocketError.ConnectionRefused
+                or SocketError.HostUnreachable
+                or SocketError.NetworkUnreachable
+                or SocketError.TimedOut);
 
     private HttpRequestMessage BuildRequest(
         HttpMethod method,
         string url,
         IEnumerable<KeyValuePair<string, string?>>? formBody,
-        object? jsonBody)
+        object? jsonBody,
+        bool sendAuth,
+        bool binary)
     {
         var req = new HttpRequestMessage(method, url);
-        ApplyHeaders(req);
+        ApplyHeaders(req, sendAuth, binary);
 
         if (formBody is not null)
         {
-            // FormUrlEncodedContent takes IEnumerable<KeyValuePair<string?,string?>> on net8, but
-            // we keep our signature non-null-key. Drop null values defensively here.
             var pairs = new List<KeyValuePair<string, string>>();
             foreach (var kv in formBody)
             {
@@ -260,7 +430,21 @@ public sealed class Transport : IDisposable
                 {
                     continue;
                 }
-                pairs.Add(new KeyValuePair<string, string>(kv.Key, kv.Value));
+                var value = kv.Value;
+                if (kv.Key == "Attributes" && value.Length > 0)
+                {
+                    try
+                    {
+                        using var attributes = JsonDocument.Parse(value);
+                        value = JsonSerializer.Serialize(attributes.RootElement);
+                    }
+                    catch (JsonException ex)
+                    {
+                        req.Dispose();
+                        throw new VoiceMLException("Attributes must be a JSON value.", ex);
+                    }
+                }
+                pairs.Add(new KeyValuePair<string, string>(kv.Key, value));
             }
             req.Content = new FormUrlEncodedContent(pairs);
         }
@@ -272,12 +456,15 @@ public sealed class Transport : IDisposable
         return req;
     }
 
-    private void ApplyHeaders(HttpRequestMessage req)
+    private void ApplyHeaders(HttpRequestMessage req, bool sendAuth, bool binary)
     {
-        req.Headers.TryAddWithoutValidation("Authorization", _basicAuthHeader);
+        if (sendAuth && _basicAuthHeader is not null)
+        {
+            req.Headers.TryAddWithoutValidation("Authorization", _basicAuthHeader);
+        }
         req.Headers.TryAddWithoutValidation("User-Agent", _userAgent);
         req.Headers.Accept.Clear();
-        req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(binary ? "*/*" : "application/json"));
     }
 
     private string BuildUrl(string path, IEnumerable<KeyValuePair<string, string?>>? queryParams)
@@ -296,10 +483,6 @@ public sealed class Transport : IDisposable
                 }
                 sb.Append(first ? '?' : '&');
                 first = false;
-                // Keep query-param names verbatim — Twilio uses literal `StartTime>=` / `StartTime<=`
-                // which contain reserved characters. RFC 3986 allows `>=` only in the query, and we
-                // need the server to see exactly that, so we URL-encode the *name* using the same
-                // rules but explicitly leave `>` and `=` un-escaped only inside the name.
                 sb.Append(EncodeQueryName(kv.Key));
                 sb.Append('=');
                 sb.Append(Uri.EscapeDataString(kv.Value));
@@ -308,71 +491,102 @@ public sealed class Transport : IDisposable
         return sb.ToString();
     }
 
+    /// <summary>Percent-encode a query-parameter NAME. Names used by the API are plain
+    /// identifiers except the literal Twilio filter names <c>StartTime&lt;</c>,
+    /// <c>StartTime&gt;</c>, <c>EndTime&lt;</c>, <c>EndTime&gt;</c> and their Date* siblings.
+    /// Those names must reach the server as percent-encoded bytes (<c>%3C</c> / <c>%3E</c>)
+    /// so the <c>=</c> that separates name from value stays unambiguous.</summary>
     private static string EncodeQueryName(string name)
     {
-        // Twilio expects the literal names `StartTime>=` / `StartTime<=` on the wire. Most URL-encode
-        // helpers percent-escape `>` and `<`, which the server then 400s on. We use Uri.EscapeDataString
-        // on everything *except* `>=` / `<=` sequences, which we leave intact.
-        // Cheap shortcut: if the name doesn't contain `>` or `<`, just escape it normally.
-        if (name.IndexOf('>') < 0 && name.IndexOf('<') < 0)
-        {
-            return Uri.EscapeDataString(name);
-        }
-        var sb = new StringBuilder(name.Length);
-        foreach (var c in name)
-        {
-            if (c is '>' or '<' or '=')
-            {
-                sb.Append(c);
-            }
-            else
-            {
-                sb.Append(Uri.EscapeDataString(c.ToString()));
-            }
-        }
-        return sb.ToString();
+        var escaped = Uri.EscapeDataString(name);
+        return escaped;
     }
 
-    private async Task BackoffAsync(int attempt, HttpResponseMessage? response, CancellationToken ct)
+    private string ResolveAgainstBase(string pageUri)
     {
-        TimeSpan delay = ComputeBackoff(attempt, response);
-        if (delay > TimeSpan.Zero)
-        {
-            try
-            {
-                await Task.Delay(delay, ct).ConfigureAwait(false);
-            }
-            catch (TaskCanceledException)
-            {
-                throw;
-            }
-        }
+        var origin = new Uri(new Uri(_baseUrl).GetLeftPart(UriPartial.Authority) + "/");
+        return RequireSameHost(new Uri(origin, pageUri).AbsoluteUri);
     }
 
-    private static TimeSpan ComputeBackoff(int attempt, HttpResponseMessage? response)
+    private string RequireSameHost(string url)
     {
-        if (response is not null && response.Headers.TryGetValues("Retry-After", out var values))
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var target))
         {
-            foreach (var v in values)
-            {
-                if (double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds) && seconds >= 0)
-                {
-                    return TimeSpan.FromSeconds(Math.Min(seconds, 60));
-                }
-            }
+            throw new VoiceMLException($"next_page_url is not an absolute URL: {url}");
         }
-        var delay = Math.Min(8.0, 0.5 * Math.Pow(2, attempt));
-        return TimeSpan.FromSeconds(delay);
+        var configured = new Uri(_baseUrl);
+        if (!string.Equals(target.Host, configured.Host, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(target.Scheme, configured.Scheme, StringComparison.OrdinalIgnoreCase)
+            || target.Port != configured.Port || target.UserInfo.Length != 0)
+        {
+            throw new VoiceMLException(
+                $"refusing to fetch a /v1 page from {target.Scheme}://{target.Host} — the configured product host is {configured.Scheme}://{configured.Host}");
+        }
+        return target.AbsoluteUri;
     }
 
-    private static async Task ThrowFromResponseAsync(HttpResponseMessage response, CancellationToken ct)
+    private static async Task DrainAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        try
+        {
+            await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        }
+        catch (HttpRequestException)
+        {
+            // Draining is best-effort; disposing the response closes the connection when it fails.
+        }
+    }
+
+    private static async Task DelayAsync(int attempt, TimeSpan? serverDirected, CancellationToken ct)
+    {
+        var delay = serverDirected ?? FullJitter(attempt);
+        if (delay <= TimeSpan.Zero)
+        {
+            return;
+        }
+        if (DelayOverride is { } hook)
+        {
+            await hook(delay, ct).ConfigureAwait(false);
+            return;
+        }
+        await Task.Delay(delay, ct).ConfigureAwait(false);
+    }
+
+    private static TimeSpan FullJitter(int attempt)
+    {
+        var ceilingSeconds = Math.Min(BackoffCeiling.TotalSeconds, BackoffBase.TotalSeconds * Math.Pow(2, attempt));
+        return TimeSpan.FromSeconds(Random.Shared.NextDouble() * ceilingSeconds);
+    }
+
+    private static TimeSpan? ParseRetryAfter(HttpResponseMessage response)
+    {
+        var value = response.Headers.RetryAfter;
+        if (value is null)
+        {
+            return null;
+        }
+        if (value.Delta is { } delta)
+        {
+            return delta;
+        }
+        if (value.Date is { } date)
+        {
+            var wait = date - DateTimeOffset.Now;
+            return wait > TimeSpan.Zero ? wait : TimeSpan.Zero;
+        }
+        return null;
+    }
+
+    private static async Task<ApiException> BuildExceptionAsync(HttpResponseMessage response, CancellationToken ct)
     {
         var statusCode = (int)response.StatusCode;
         var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
 
         object? parsedBody = null;
-        object? code = null;
+        int? code = null;
+        string? codeRaw = null;
         string? moreInfo = null;
+        int? status = null;
         string message = $"HTTP {statusCode}";
 
         if (!string.IsNullOrEmpty(body))
@@ -385,13 +599,19 @@ public sealed class Transport : IDisposable
                 {
                     if (doc.RootElement.TryGetProperty("code", out var codeEl))
                     {
-                        code = codeEl.ValueKind switch
+                        if (codeEl.ValueKind == JsonValueKind.Number && codeEl.TryGetInt32(out var i))
                         {
-                            JsonValueKind.Number when codeEl.TryGetInt32(out var i) => i,
-                            JsonValueKind.Number => codeEl.GetDouble(),
-                            JsonValueKind.String => codeEl.GetString(),
-                            _ => null,
-                        };
+                            code = i;
+                            codeRaw = codeEl.GetRawText();
+                        }
+                        else if (codeEl.ValueKind is JsonValueKind.String or JsonValueKind.Number)
+                        {
+                            codeRaw = codeEl.ValueKind == JsonValueKind.String ? codeEl.GetString() : codeEl.GetRawText();
+                            if (int.TryParse(codeRaw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var numeric))
+                            {
+                                code = numeric;
+                            }
+                        }
                     }
                     if (doc.RootElement.TryGetProperty("message", out var msgEl) && msgEl.ValueKind == JsonValueKind.String)
                     {
@@ -409,6 +629,11 @@ public sealed class Transport : IDisposable
                             moreInfo = s;
                         }
                     }
+                    if (doc.RootElement.TryGetProperty("status", out var stEl)
+                        && stEl.ValueKind == JsonValueKind.Number && stEl.TryGetInt32(out var st))
+                    {
+                        status = st;
+                    }
                 }
             }
             catch (JsonException)
@@ -417,31 +642,21 @@ public sealed class Transport : IDisposable
             }
         }
 
-        double? retryAfter = null;
-        if (response.Headers.TryGetValues("Retry-After", out var raVals))
-        {
-            foreach (var v in raVals)
-            {
-                if (double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds))
-                {
-                    retryAfter = seconds;
-                    break;
-                }
-            }
-        }
+        TimeSpan? retryAfter = ParseRetryAfter(response);
+        double? retryAfterSeconds = retryAfter is null ? null : retryAfter.Value.TotalSeconds;
 
-        throw statusCode switch
+        return statusCode switch
         {
-            400 => new BadRequestException(message, statusCode, code, parsedBody, moreInfo),
-            401 => new AuthenticationException(message, statusCode, code, parsedBody, moreInfo),
-            403 => new PermissionDeniedException(message, statusCode, code, parsedBody, moreInfo),
-            404 => new NotFoundException(message, statusCode, code, parsedBody, moreInfo),
-            409 => new ConflictException(message, statusCode, code, parsedBody, moreInfo),
-            410 => new GoneException(message, statusCode, code, parsedBody, moreInfo),
-            429 => new RateLimitException(message, statusCode, code, parsedBody, retryAfter, moreInfo),
-            501 => new NotImplementedAPIException(message, statusCode, code, parsedBody, moreInfo),
-            >= 500 and < 600 => new ServerException(message, statusCode, code, parsedBody, moreInfo),
-            _ => new ApiException(message, statusCode, code, parsedBody, moreInfo),
+            400 => new BadRequestException(message, statusCode, code, parsedBody, moreInfo, codeRaw, status),
+            401 => new AuthenticationException(message, statusCode, code, parsedBody, moreInfo, codeRaw, status),
+            403 => new PermissionDeniedException(message, statusCode, code, parsedBody, moreInfo, codeRaw, status),
+            404 => new NotFoundException(message, statusCode, code, parsedBody, moreInfo, codeRaw, status),
+            409 => new ConflictException(message, statusCode, code, parsedBody, moreInfo, codeRaw, status),
+            410 => new GoneException(message, statusCode, code, parsedBody, moreInfo, codeRaw, status),
+            429 => new RateLimitException(message, statusCode, code, parsedBody, retryAfterSeconds, moreInfo, codeRaw, status, retryAfter),
+            501 => new NotImplementedAPIException(message, statusCode, code, parsedBody, moreInfo, codeRaw, status),
+            >= 500 and < 600 => new ServerException(message, statusCode, code, parsedBody, moreInfo, codeRaw, status),
+            _ => new ApiException(message, statusCode, code, parsedBody, moreInfo, codeRaw, status),
         };
     }
 

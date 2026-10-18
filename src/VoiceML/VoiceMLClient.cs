@@ -3,8 +3,8 @@ using VoiceML.Resources;
 
 namespace VoiceML;
 
-/// <summary>The main VoiceML SDK client. Holds the <see cref="Transport"/> and exposes one
-/// resource property per top-level Twilio surface.
+/// <summary>The main VoiceML SDK client. Holds the HTTP transport and exposes one resource
+/// property per top-level API surface.
 /// <para>Usage:</para>
 /// <code>
 /// using var client = new VoiceMLClient(new ClientOptions {
@@ -75,7 +75,31 @@ public sealed class VoiceMLClient : IDisposable
     /// subdomain).</summary>
     public PricingResource Pricing { get; }
 
-    /// <summary>Diagnostic endpoints: <c>/health</c> and <c>/openapi.json</c>.</summary>
+    /// <summary>Monitor v1 alerts (<c>/v1/Alerts</c>) — failure events (call-scoped errors
+    /// and messaging delivery failures) rendered in the Alert shape, on the base host.</summary>
+    public MonitorAlertsResource MonitorAlerts { get; }
+
+    /// <summary>Operations on the authenticated account itself (self-serve fetch/update).</summary>
+    public AccountsResource Accounts { get; }
+
+    /// <summary>The account balance (a static zero — VoiceML is operator-billed).</summary>
+    public BalanceResource Balance { get; }
+
+    /// <summary>Verified caller-ID management.</summary>
+    public OutgoingCallerIdsResource OutgoingCallerIds { get; }
+
+    /// <summary>Account-wide recording-derived transcriptions.</summary>
+    public TranscriptionsResource Transcriptions { get; }
+
+    /// <summary>Daily event-log archives (VoiceML extension): list and download.</summary>
+    public ExportsResource Exports { get; }
+
+    /// <summary>Usage Records: the bare window plus the eight named windows.</summary>
+    public UsageRecordsResource UsageRecords { get; }
+
+    /// <summary>Diagnostic endpoints: <c>/health</c> and <c>/openapi.json|.yaml|.yml</c>.
+    /// No credentials are sent on these paths; see also the credential-less static
+    /// <see cref="VoiceMLDiagnostics"/> helper.</summary>
     public DiagnosticsResource Diagnostics { get; }
 
     /// <summary>The configured AccountSid (from <see cref="ClientOptions.AccountSid"/>).</summary>
@@ -84,9 +108,10 @@ public sealed class VoiceMLClient : IDisposable
     /// <summary>The configured server base URL (no trailing slash).</summary>
     public string BaseUrl => _transport.BaseUrl;
 
-    /// <summary>Construct the client from <see cref="ClientOptions"/>. <see cref="ClientOptions.Validate"/>
-    /// is called inside the <see cref="Transport"/> constructor and will throw
-    /// <see cref="VoiceML.Exceptions.ConfigurationException"/> on missing required fields.</summary>
+    /// <summary>Construct the client from <see cref="ClientOptions"/>. Validation runs during
+    /// construction and will throw
+    /// <see cref="VoiceML.Exceptions.ConfigurationException"/> on missing or conflicting
+    /// fields.</summary>
     public VoiceMLClient(ClientOptions options)
     {
         _transport = new Transport(options);
@@ -100,6 +125,12 @@ public sealed class VoiceMLClient : IDisposable
         var messagingTransport = _transport.WithBaseUrl(messagingBaseUrl);
 
         Calls = new CallsResource(_transport);
+        Accounts = new AccountsResource(_transport);
+        Balance = new BalanceResource(_transport);
+        OutgoingCallerIds = new OutgoingCallerIdsResource(_transport);
+        Transcriptions = new TranscriptionsResource(_transport);
+        Exports = new ExportsResource(_transport);
+        UsageRecords = new UsageRecordsResource(_transport);
         Conferences = new ConferencesResource(_transport);
         Queues = new QueuesResource(_transport);
         Applications = new ApplicationsResource(_transport);
@@ -114,6 +145,7 @@ public sealed class VoiceMLClient : IDisposable
         AssistantsV1 = new AssistantsV1Resource(_transport);
         MessagingV1 = new MessagingV1Resource(messagingTransport);
         Pricing = new PricingResource(_transport);
+        MonitorAlerts = new MonitorAlertsResource(_transport);
         Diagnostics = new DiagnosticsResource(_transport);
     }
 

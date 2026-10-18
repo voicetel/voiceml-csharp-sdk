@@ -9,11 +9,10 @@ using VoiceML.Models;
 namespace VoiceML.Resources;
 
 /// <summary>Operations on <c>/Calls</c> and call-scoped sub-resources (Recordings, Streams,
-/// Siprec, Transcriptions, Notifications, Events, UserDefinedMessages).</summary>
+/// Siprec, Transcriptions, Notifications, Events, Payments, UserDefinedMessages).</summary>
 public sealed class CallsResource : ResourceBase
 {
-    /// <summary>Construct with the shared transport.</summary>
-    public CallsResource(Transport transport) : base(transport) { }
+    internal CallsResource(Transport transport) : base(transport) { }
 
     // -------------------------------------------------------------------
     // /Calls
@@ -31,23 +30,35 @@ public sealed class CallsResource : ResourceBase
         return result ?? new CallList();
     }
 
-    /// <summary>Iterate through all calls across pages, yielding one <see cref="Call"/> at a time.
-    /// Pass an empty <see cref="ListCallsParams"/> for an unfiltered iteration.</summary>
+    /// <summary>Fetch the page a list response links to next, following its
+    /// <see cref="Page.NextPageUri"/> verbatim. Returns <c>null</c> when the page is the last
+    /// one.</summary>
+    public Task<CallList?> NextPageAsync(CallList page, CancellationToken ct = default)
+        => string.IsNullOrEmpty(page.NextPageUri)
+            ? Task.FromResult<CallList?>(null)
+            : Transport.SendPageUriAsync<CallList>(page.NextPageUri!, ct);
+
+    /// <summary>Iterate through all calls across pages, yielding one <see cref="Call"/> at a
+    /// time. Pages are fetched by following <see cref="Page.NextPageUri"/> verbatim; iteration
+    /// stops at the last page, and no further requests are made once the consumer stops
+    /// enumerating. Pass an empty <see cref="ListCallsParams"/> for an unfiltered iteration.</summary>
     public async IAsyncEnumerable<Call> IterateAsync(
         ListCallsParams? filter = null,
-        int page = 0,
-        int? pageSize = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var p = filter ?? new ListCallsParams();
+        var page = await ListAsync(filter, ct).ConfigureAwait(false);
         while (true)
         {
-            var chunk = await ListAsync(
-                p with { Page = page, PageSize = pageSize ?? p.PageSize },
-                ct).ConfigureAwait(false);
-            foreach (var item in chunk.Calls) yield return item;
-            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.Calls.Count == 0) yield break;
-            page++;
+            foreach (var item in page.Calls)
+            {
+                yield return item;
+            }
+            if (string.IsNullOrEmpty(page.NextPageUri))
+            {
+                yield break;
+            }
+            page = await NextPageAsync(page, ct).ConfigureAwait(false)
+                ?? throw new VoiceMLException("empty page while following next_page_uri");
         }
     }
 
@@ -93,9 +104,9 @@ public sealed class CallsResource : ResourceBase
 
     /// <summary>List recordings for a call.</summary>
     public async Task<RecordingList> ListRecordingsAsync(
-        string callSid, ListRecordingsParams? filter = null, CancellationToken ct = default)
+        string callSid, ListCallRecordingsParams? filter = null, CancellationToken ct = default)
     {
-        var p = filter ?? new ListRecordingsParams();
+        var p = filter ?? new ListCallRecordingsParams();
         var result = await Transport.SendAsync<RecordingList>(
             HttpMethod.Get,
             Path("Calls", callSid, "Recordings"),
@@ -108,21 +119,22 @@ public sealed class CallsResource : ResourceBase
     /// <see cref="Recording"/> at a time.</summary>
     public async IAsyncEnumerable<Recording> IterateRecordingsAsync(
         string callSid,
-        ListRecordingsParams? filter = null,
-        int page = 0,
-        int? pageSize = null,
+        ListCallRecordingsParams? filter = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var p = filter ?? new ListRecordingsParams();
+        var page = await ListRecordingsAsync(callSid, filter, ct).ConfigureAwait(false);
         while (true)
         {
-            var chunk = await ListRecordingsAsync(
-                callSid,
-                p with { Page = page, PageSize = pageSize ?? p.PageSize },
-                ct).ConfigureAwait(false);
-            foreach (var item in chunk.Recordings) yield return item;
-            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.Recordings.Count == 0) yield break;
-            page++;
+            foreach (var item in page.Recordings)
+            {
+                yield return item;
+            }
+            if (string.IsNullOrEmpty(page.NextPageUri))
+            {
+                yield break;
+            }
+            page = await Transport.SendPageUriAsync<RecordingList>(page.NextPageUri!, ct).ConfigureAwait(false)
+                ?? throw new VoiceMLException("empty page while following next_page_uri");
         }
     }
 
@@ -165,18 +177,9 @@ public sealed class CallsResource : ResourceBase
         => Transport.SendNoContentAsync(HttpMethod.Delete, Path("Calls", callSid, "Recordings", recordingSid), ct: ct);
 
     // -------------------------------------------------------------------
-    // /Calls/{sid}/Streams
+    // /Calls/{sid}/Streams (POST start/stop only — the GET list/fetch
+    // endpoints were removed from the API and answer 405/20004)
     // -------------------------------------------------------------------
-
-    /// <summary>List media streams for a call.</summary>
-    public async Task<StreamList> ListStreamsAsync(string callSid, CancellationToken ct = default)
-    {
-        var result = await Transport.SendAsync<StreamList>(
-            HttpMethod.Get,
-            Path("Calls", callSid, "Streams"),
-            ct: ct).ConfigureAwait(false);
-        return result ?? new StreamList();
-    }
 
     /// <summary>Start a media stream on a live call.</summary>
     public async Task<Stream> StartStreamAsync(string callSid, StartStreamRequest request, CancellationToken ct = default)
@@ -187,16 +190,6 @@ public sealed class CallsResource : ResourceBase
             formBody: request.ToForm(),
             ct: ct).ConfigureAwait(false);
         return result ?? throw new ApiException("empty body on POST /Calls/{sid}/Streams", 200);
-    }
-
-    /// <summary>Fetch a single stream by SID.</summary>
-    public async Task<Stream> GetStreamAsync(string callSid, string streamSid, CancellationToken ct = default)
-    {
-        var result = await Transport.SendAsync<Stream>(
-            HttpMethod.Get,
-            Path("Calls", callSid, "Streams", streamSid),
-            ct: ct).ConfigureAwait(false);
-        return result ?? throw new ApiException("empty body on GET /Calls/{sid}/Streams/{ssid}", 200);
     }
 
     /// <summary>Stop a media stream.</summary>
@@ -213,18 +206,9 @@ public sealed class CallsResource : ResourceBase
     }
 
     // -------------------------------------------------------------------
-    // /Calls/{sid}/Siprec
+    // /Calls/{sid}/Siprec (POST start/stop only — the GET list/fetch
+    // endpoints were removed from the API and answer 405/20004)
     // -------------------------------------------------------------------
-
-    /// <summary>List SIPREC sessions for a call.</summary>
-    public async Task<SiprecList> ListSiprecAsync(string callSid, CancellationToken ct = default)
-    {
-        var result = await Transport.SendAsync<SiprecList>(
-            HttpMethod.Get,
-            Path("Calls", callSid, "Siprec"),
-            ct: ct).ConfigureAwait(false);
-        return result ?? new SiprecList();
-    }
 
     /// <summary>Start a SIPREC session on a live call.</summary>
     public async Task<SiprecSession> StartSiprecAsync(
@@ -237,16 +221,6 @@ public sealed class CallsResource : ResourceBase
             formBody: form,
             ct: ct).ConfigureAwait(false);
         return result ?? throw new ApiException("empty body on POST /Calls/{sid}/Siprec", 200);
-    }
-
-    /// <summary>Fetch a single SIPREC session by SID.</summary>
-    public async Task<SiprecSession> GetSiprecAsync(string callSid, string siprecSid, CancellationToken ct = default)
-    {
-        var result = await Transport.SendAsync<SiprecSession>(
-            HttpMethod.Get,
-            Path("Calls", callSid, "Siprec", siprecSid),
-            ct: ct).ConfigureAwait(false);
-        return result ?? throw new ApiException("empty body on GET /Calls/{sid}/Siprec/{ssid}", 200);
     }
 
     /// <summary>Stop a SIPREC session.</summary>
@@ -263,18 +237,9 @@ public sealed class CallsResource : ResourceBase
     }
 
     // -------------------------------------------------------------------
-    // /Calls/{sid}/Transcriptions
+    // /Calls/{sid}/Transcriptions (POST start/stop only — the GET list/fetch
+    // endpoints were removed from the API and answer 405/20004)
     // -------------------------------------------------------------------
-
-    /// <summary>List transcriptions for a call.</summary>
-    public async Task<TranscriptionList> ListTranscriptionsAsync(string callSid, CancellationToken ct = default)
-    {
-        var result = await Transport.SendAsync<TranscriptionList>(
-            HttpMethod.Get,
-            Path("Calls", callSid, "Transcriptions"),
-            ct: ct).ConfigureAwait(false);
-        return result ?? new TranscriptionList();
-    }
 
     /// <summary>Start a transcription on a live call.</summary>
     public async Task<CallTranscription> StartTranscriptionAsync(
@@ -287,17 +252,6 @@ public sealed class CallsResource : ResourceBase
             formBody: form,
             ct: ct).ConfigureAwait(false);
         return result ?? throw new ApiException("empty body on POST /Calls/{sid}/Transcriptions", 200);
-    }
-
-    /// <summary>Fetch a single transcription by SID.</summary>
-    public async Task<CallTranscription> GetTranscriptionAsync(
-        string callSid, string transcriptionSid, CancellationToken ct = default)
-    {
-        var result = await Transport.SendAsync<CallTranscription>(
-            HttpMethod.Get,
-            Path("Calls", callSid, "Transcriptions", transcriptionSid),
-            ct: ct).ConfigureAwait(false);
-        return result ?? throw new ApiException("empty body on GET /Calls/{sid}/Transcriptions/{tsid}", 200);
     }
 
     /// <summary>Stop a transcription.</summary>
@@ -332,10 +286,10 @@ public sealed class CallsResource : ResourceBase
     }
 
     /// <summary>Fetch a per-call notification. Always 404 today (compat stub).</summary>
-    public async Task<Dictionary<string, object?>> GetNotificationAsync(
+    public async Task<Notification> GetNotificationAsync(
         string callSid, string notificationSid, CancellationToken ct = default)
     {
-        var result = await Transport.SendAsync<Dictionary<string, object?>>(
+        var result = await Transport.SendAsync<Notification>(
             HttpMethod.Get,
             Path("Calls", callSid, "Notifications", notificationSid),
             ct: ct).ConfigureAwait(false);
@@ -362,7 +316,8 @@ public sealed class CallsResource : ResourceBase
 
     /// <summary>Start a <c>&lt;Pay&gt;</c> session on the live call. Returns 201 with the
     /// freshly-minted <see cref="CallPayment"/>. Returns 403 when the tenant is not
-    /// <c>pay_enabled</c> or has no <c>stripe_secret_key</c> configured.</summary>
+    /// <c>pay_enabled</c> or has no <c>stripe_secret_key</c> configured. The response carries no
+    /// <c>status</c> field — track the session through your StatusCallback.</summary>
     public async Task<CallPayment> StartPaymentAsync(
         string callSid, StartPaymentRequest request, CancellationToken ct = default)
     {

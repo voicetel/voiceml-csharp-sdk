@@ -9,5 +9,5 @@ public class VoiceMLException : Exception
     public VoiceMLException(string message) : base(message) { }
 
     /// <summary>Construct with a message and inner exception.</summary>
-    public VoiceMLException(string message, Exception inner) : base(message, inner) { }
+    public VoiceMLException(string message, Exception? inner) : base(message, inner) { }
 }

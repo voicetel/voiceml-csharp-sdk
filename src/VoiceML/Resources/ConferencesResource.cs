@@ -11,8 +11,7 @@ namespace VoiceML.Resources;
 /// <summary>Operations on live conferences and their participants/recordings.</summary>
 public sealed class ConferencesResource : ResourceBase
 {
-    /// <summary>Construct with the shared transport.</summary>
-    public ConferencesResource(Transport transport) : base(transport) { }
+    internal ConferencesResource(Transport transport) : base(transport) { }
 
     /// <summary>List conferences.</summary>
     public async Task<ConferenceList> ListAsync(ListConferencesParams? filter = null, CancellationToken ct = default)
@@ -27,21 +26,25 @@ public sealed class ConferencesResource : ResourceBase
     /// <see cref="Conference"/> at a time.</summary>
     public async IAsyncEnumerable<Conference> IterateAsync(
         ListConferencesParams? filter = null,
-        int page = 0,
-        int? pageSize = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var p = filter ?? new ListConferencesParams();
+        var page = await ListAsync(filter, ct).ConfigureAwait(false);
         while (true)
         {
-            var chunk = await ListAsync(
-                p with { Page = page, PageSize = pageSize ?? p.PageSize },
-                ct).ConfigureAwait(false);
-            foreach (var item in chunk.Conferences) yield return item;
-            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.Conferences.Count == 0) yield break;
-            page++;
+            foreach (var item in page.Conferences) yield return item;
+            if (string.IsNullOrEmpty(page.NextPageUri)) yield break;
+            page = await Transport.SendPageUriAsync<ConferenceList>(page.NextPageUri!, ct).ConfigureAwait(false)
+                ?? throw new VoiceMLException("empty page while following next_page_uri");
         }
     }
+
+    /// <summary>Fetch the page a conferences list response links to next, following its
+    /// <see cref="Page.NextPageUri"/> verbatim. Returns <c>null</c> when the page is the last
+    /// one.</summary>
+    public Task<ConferenceList?> NextPageAsync(ConferenceList page, CancellationToken ct = default)
+        => string.IsNullOrEmpty(page.NextPageUri)
+            ? Task.FromResult<ConferenceList?>(null)
+            : Transport.SendPageUriAsync<ConferenceList>(page.NextPageUri!, ct);
 
     /// <summary>Fetch a single conference by SID.</summary>
     public async Task<Conference> GetAsync(string conferenceSid, CancellationToken ct = default)
@@ -82,22 +85,25 @@ public sealed class ConferencesResource : ResourceBase
     public async IAsyncEnumerable<Participant> IterateParticipantsAsync(
         string conferenceSid,
         ListParticipantsParams? filter = null,
-        int page = 0,
-        int? pageSize = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var p = filter ?? new ListParticipantsParams();
+        var page = await ListParticipantsAsync(conferenceSid, filter, ct).ConfigureAwait(false);
         while (true)
         {
-            var chunk = await ListParticipantsAsync(
-                conferenceSid,
-                p with { Page = page, PageSize = pageSize ?? p.PageSize },
-                ct).ConfigureAwait(false);
-            foreach (var item in chunk.Participants) yield return item;
-            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.Participants.Count == 0) yield break;
-            page++;
+            foreach (var item in page.Participants) yield return item;
+            if (string.IsNullOrEmpty(page.NextPageUri)) yield break;
+            page = await Transport.SendPageUriAsync<ParticipantList>(page.NextPageUri!, ct).ConfigureAwait(false)
+                ?? throw new VoiceMLException("empty page while following next_page_uri");
         }
     }
+
+    /// <summary>Fetch the page a participants list response links to next, following its
+    /// <see cref="Page.NextPageUri"/> verbatim. Returns <c>null</c> when the page is the last
+    /// one.</summary>
+    public Task<ParticipantList?> NextParticipantsPageAsync(ParticipantList page, CancellationToken ct = default)
+        => string.IsNullOrEmpty(page.NextPageUri)
+            ? Task.FromResult<ParticipantList?>(null)
+            : Transport.SendPageUriAsync<ParticipantList>(page.NextPageUri!, ct);
 
     /// <summary>Fetch a single participant.</summary>
     public async Task<Participant> GetParticipantAsync(
@@ -159,21 +165,40 @@ public sealed class ConferencesResource : ResourceBase
     public async IAsyncEnumerable<Recording> IterateRecordingsAsync(
         string conferenceSid,
         ListCallRecordingsParams? filter = null,
-        int page = 0,
-        int? pageSize = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var p = filter ?? new ListCallRecordingsParams();
+        var page = await ListRecordingsAsync(conferenceSid, filter, ct).ConfigureAwait(false);
         while (true)
         {
-            var chunk = await ListRecordingsAsync(
-                conferenceSid,
-                p with { Page = page, PageSize = pageSize ?? p.PageSize },
-                ct).ConfigureAwait(false);
-            foreach (var item in chunk.Recordings) yield return item;
-            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.Recordings.Count == 0) yield break;
-            page++;
+            foreach (var item in page.Recordings) yield return item;
+            if (string.IsNullOrEmpty(page.NextPageUri)) yield break;
+            page = await Transport.SendPageUriAsync<RecordingList>(page.NextPageUri!, ct).ConfigureAwait(false)
+                ?? throw new VoiceMLException("empty page while following next_page_uri");
         }
+    }
+
+    /// <summary>Fetch the page a conference-recordings list response links to next, following
+    /// its <see cref="Page.NextPageUri"/> verbatim. Returns <c>null</c> when the page is the
+    /// last one.</summary>
+    public Task<RecordingList?> NextRecordingsPageAsync(RecordingList page, CancellationToken ct = default)
+        => string.IsNullOrEmpty(page.NextPageUri)
+            ? Task.FromResult<RecordingList?>(null)
+            : Transport.SendPageUriAsync<RecordingList>(page.NextPageUri!, ct);
+
+    /// <summary>Start a recording on the named conference's mixed audio. The new Recording
+    /// is returned with <c>source</c> = <c>StartConferenceRecordingAPI</c>,
+    /// <c>status</c> = <c>in-progress</c>, and <c>channels</c> = 1 (conference recordings are
+    /// always mono).</summary>
+    public async Task<Recording> StartRecordingAsync(
+        string conferenceSid, StartConferenceRecordingRequest? request = null, CancellationToken ct = default)
+    {
+        var form = request?.ToForm();
+        var result = await Transport.SendAsync<Recording>(
+            HttpMethod.Post,
+            Path("Conferences", conferenceSid, "Recordings"),
+            formBody: form,
+            ct: ct).ConfigureAwait(false);
+        return result ?? throw new ApiException("empty body on POST /Conferences/{sid}/Recordings", 200);
     }
 
     /// <summary>Fetch metadata for a conference-scoped recording.</summary>
@@ -189,7 +214,7 @@ public sealed class ConferencesResource : ResourceBase
 
     /// <summary>Update a conference-scoped recording.</summary>
     public async Task<Recording> UpdateRecordingAsync(
-        string conferenceSid, string recordingSid, UpdateRecordingRequest request,
+        string conferenceSid, string recordingSid, UpdateConferenceRecordingRequest request,
         CancellationToken ct = default)
     {
         var result = await Transport.SendAsync<Recording>(

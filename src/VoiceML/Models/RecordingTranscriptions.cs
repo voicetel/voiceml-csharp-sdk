@@ -55,9 +55,9 @@ public sealed record RecordingTranscription
 
 /// <summary>List response for the recording-derived transcriptions surfaces
 /// (account-scoped <c>/Transcriptions</c> and recording-scoped
-/// <c>/Recordings/{Sid}/Transcriptions</c>). Distinct from
-/// <see cref="TranscriptionList"/>, which lists realtime <see cref="CallTranscription"/>
-/// resources tied to a live call.</summary>
+/// <c>/Recordings/{Sid}/Transcriptions</c>). The API's per-call transcription list endpoint
+/// was removed; realtime transcriptions started on a live call are managed through
+/// <see cref="Resources.CallsResource.StartTranscriptionAsync"/>.</summary>
 public sealed record RecordingTranscriptionList : Page
 {
     /// <summary>The page of recording-derived transcription resources.</summary>

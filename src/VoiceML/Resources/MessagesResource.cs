@@ -13,8 +13,7 @@ namespace VoiceML.Resources;
 /// (redaction), and <c>Status=canceled</c> returns 21610.</summary>
 public sealed class MessagesResource : ResourceBase
 {
-    /// <summary>Construct with the shared transport.</summary>
-    public MessagesResource(Transport transport) : base(transport) { }
+    internal MessagesResource(Transport transport) : base(transport) { }
 
     /// <summary>List messages. Pass an empty <see cref="ListMessagesParams"/> for an unfiltered list.</summary>
     public async Task<MessageList> ListAsync(ListMessagesParams? filter = null, CancellationToken ct = default)
@@ -32,23 +31,28 @@ public sealed class MessagesResource : ResourceBase
     /// Pass an empty <see cref="ListMessagesParams"/> for an unfiltered iteration.</summary>
     public async IAsyncEnumerable<Message> IterateAsync(
         ListMessagesParams? filter = null,
-        int page = 0,
-        int? pageSize = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var p = filter ?? new ListMessagesParams();
+        var page = await ListAsync(filter, ct).ConfigureAwait(false);
         while (true)
         {
-            var chunk = await ListAsync(
-                p with { Page = page, PageSize = pageSize ?? p.PageSize },
-                ct).ConfigureAwait(false);
-            foreach (var item in chunk.Messages) yield return item;
-            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.Messages.Count == 0) yield break;
-            page++;
+            foreach (var item in page.Messages) yield return item;
+            if (string.IsNullOrEmpty(page.NextPageUri)) yield break;
+            page = await Transport.SendPageUriAsync<MessageList>(page.NextPageUri!, ct).ConfigureAwait(false)
+                ?? throw new VoiceMLException("empty page while following next_page_uri");
         }
     }
 
     /// <summary>Dispatch an outbound SMS.</summary>
+    /// <summary>Fetch the page a list response links to next, following its
+    /// <see cref="Page.NextPageUri"/> verbatim. Returns <c>null</c> when the page is the last
+    /// one.</summary>
+    public Task<MessageList?> NextPageAsync(MessageList page, CancellationToken ct = default)
+        => string.IsNullOrEmpty(page.NextPageUri)
+            ? Task.FromResult<MessageList?>(null)
+            : Transport.SendPageUriAsync<MessageList>(page.NextPageUri!, ct);
+
+    /// <summary>Create messages. Route: Messages.</summary>
     public async Task<Message> CreateAsync(CreateMessageRequest request, CancellationToken ct = default)
     {
         var result = await Transport.SendAsync<Message>(
@@ -80,7 +84,72 @@ public sealed class MessagesResource : ResourceBase
         return result ?? throw new ApiException("empty body on POST /Messages/{sid}", 200);
     }
 
+    /// <summary>Scope to a message's <c>/Media</c> sub-resource — the MMS attachments on
+    /// the message.</summary>
+    public MessageMediaResource Media(string messageSid) => new(Transport, messageSid);
+
+    /// <summary>Submit delivery feedback for a message
+    /// (<c>POST /2010-04-01/Accounts/{AccountSid}/Messages/{Sid}/Feedback.json</c>). Any
+    /// outcome other than <see cref="VoiceML.MessageFeedbackOutcome.Confirmed"/> — including
+    /// an omitted one — is echoed back as <c>unconfirmed</c>; feedback is not persisted.</summary>
+    public async Task<MessageFeedback> CreateFeedbackAsync(string messageSid, CreateMessageFeedbackRequest request, CancellationToken ct = default)
+    {
+        var result = await Transport.SendAsync<MessageFeedback>(
+            HttpMethod.Post,
+            Path("Messages", messageSid, "Feedback"),
+            formBody: request.ToForm(),
+            ct: ct).ConfigureAwait(false);
+        return result ?? throw new ApiException("empty body on POST /Messages/{sid}/Feedback", 201);
+    }
+
     /// <summary>Delete a message resource from the account's store.</summary>
     public Task DeleteAsync(string messageSid, CancellationToken ct = default)
         => Transport.SendNoContentAsync(HttpMethod.Delete, Path("Messages", messageSid), ct: ct);
+}
+
+/// <summary>Operations on <c>/Messages/{MessageSid}/Media</c> — the media attachments on a
+/// message. Obtain via <see cref="MessagesResource.Media"/>.</summary>
+public sealed class MessageMediaResource : ResourceBase
+{
+    private readonly string _messageSid;
+
+    internal MessageMediaResource(Transport transport, string messageSid) : base(transport)
+    {
+        _messageSid = messageSid;
+    }
+
+    /// <summary>List the media attachments on this message.</summary>
+    public async Task<MediaList> ListAsync(ListMediaParams? filter = null, CancellationToken ct = default)
+    {
+        var p = filter ?? new ListMediaParams();
+        var result = await Transport.SendAsync<MediaList>(
+            HttpMethod.Get,
+            Path("Messages", _messageSid, "Media"),
+            queryParams: p.ToQuery(),
+            ct: ct).ConfigureAwait(false);
+        return result ?? new MediaList();
+    }
+
+    /// <summary>Fetch the page a list response links to next, following its
+    /// <see cref="Page.NextPageUri"/> verbatim. Returns <c>null</c> when the page is the last
+    /// one.</summary>
+    public Task<MediaList?> NextPageAsync(MediaList page, CancellationToken ct = default)
+        => string.IsNullOrEmpty(page.NextPageUri)
+            ? Task.FromResult<MediaList?>(null)
+            : Transport.SendPageUriAsync<MediaList>(page.NextPageUri!, ct);
+
+    /// <summary>Fetch one media attachment by SID.</summary>
+    public async Task<Media> GetAsync(string sid, CancellationToken ct = default)
+    {
+        var result = await Transport.SendAsync<Media>(
+            HttpMethod.Get,
+            Path("Messages", _messageSid, "Media", sid),
+            ct: ct).ConfigureAwait(false);
+        return result ?? throw new ApiException("empty body on GET /Messages/{msid}/Media/{sid}", 200);
+    }
+
+    /// <summary>Delete one media attachment.</summary>
+    public Task DeleteAsync(string sid, CancellationToken ct = default)
+        => Transport.SendNoContentAsync(
+            HttpMethod.Delete, Path("Messages", _messageSid, "Media", sid), ct: ct);
 }

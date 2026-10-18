@@ -72,7 +72,7 @@ public class SipTests
             call++;
             return call switch
             {
-                1 => Reply(HttpStatusCode.OK, $$"""{"domains":[{{DomainJson()}}],"page":0,"page_size":50,"total":1,"uri":""}"""),
+                1 => Reply(HttpStatusCode.OK, $$"""{"domains":[{{DomainJson()}}],"page":0,"page_size":50,"uri":""}"""),
                 2 => Reply(HttpStatusCode.OK, DomainJson()),
                 3 => Reply(HttpStatusCode.OK, DomainJson()),
                 _ => Reply(HttpStatusCode.NoContent, ""),

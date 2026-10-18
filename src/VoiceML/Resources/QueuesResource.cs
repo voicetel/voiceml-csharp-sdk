@@ -11,8 +11,7 @@ namespace VoiceML.Resources;
 /// <summary>Operations on <c>/Queues</c> and <c>/Queues/{sid}/Members</c>.</summary>
 public sealed class QueuesResource : ResourceBase
 {
-    /// <summary>Construct with the shared transport.</summary>
-    public QueuesResource(Transport transport) : base(transport) { }
+    internal QueuesResource(Transport transport) : base(transport) { }
 
     /// <summary>Create a queue.</summary>
     public async Task<Queue> CreateAsync(CreateQueueRequest request, CancellationToken ct = default)
@@ -38,21 +37,25 @@ public sealed class QueuesResource : ResourceBase
     /// <see cref="Queue"/> at a time.</summary>
     public async IAsyncEnumerable<Queue> IterateAsync(
         ListPageParams? filter = null,
-        int page = 0,
-        int? pageSize = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var p = filter ?? new ListPageParams();
+        var page = await ListAsync(filter, ct).ConfigureAwait(false);
         while (true)
         {
-            var chunk = await ListAsync(
-                p with { Page = page, PageSize = pageSize ?? p.PageSize },
-                ct).ConfigureAwait(false);
-            foreach (var item in chunk.Queues) yield return item;
-            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.Queues.Count == 0) yield break;
-            page++;
+            foreach (var item in page.Queues) yield return item;
+            if (string.IsNullOrEmpty(page.NextPageUri)) yield break;
+            page = await Transport.SendPageUriAsync<QueueList>(page.NextPageUri!, ct).ConfigureAwait(false)
+                ?? throw new VoiceMLException("empty page while following next_page_uri");
         }
     }
+
+    /// <summary>Fetch the page a queues list response links to next, following its
+    /// <see cref="Page.NextPageUri"/> verbatim. Returns <c>null</c> when the page is the last
+    /// one.</summary>
+    public Task<QueueList?> NextPageAsync(QueueList page, CancellationToken ct = default)
+        => string.IsNullOrEmpty(page.NextPageUri)
+            ? Task.FromResult<QueueList?>(null)
+            : Transport.SendPageUriAsync<QueueList>(page.NextPageUri!, ct);
 
     /// <summary>Fetch a queue by SID.</summary>
     public async Task<Queue> GetAsync(string queueSid, CancellationToken ct = default)
@@ -92,20 +95,15 @@ public sealed class QueuesResource : ResourceBase
     public async IAsyncEnumerable<QueueMember> IterateMembersAsync(
         string queueSid,
         ListQueueMembersParams? filter = null,
-        int page = 0,
-        int? pageSize = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var p = filter ?? new ListQueueMembersParams();
+        var page = await ListMembersAsync(queueSid, filter, ct).ConfigureAwait(false);
         while (true)
         {
-            var chunk = await ListMembersAsync(
-                queueSid,
-                p with { Page = page, PageSize = pageSize ?? p.PageSize },
-                ct).ConfigureAwait(false);
-            foreach (var item in chunk.QueueMembers) yield return item;
-            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.QueueMembers.Count == 0) yield break;
-            page++;
+            foreach (var item in page.QueueMembers) yield return item;
+            if (string.IsNullOrEmpty(page.NextPageUri)) yield break;
+            page = await Transport.SendPageUriAsync<QueueMemberList>(page.NextPageUri!, ct).ConfigureAwait(false)
+                ?? throw new VoiceMLException("empty page while following next_page_uri");
         }
     }
 
@@ -129,6 +127,14 @@ public sealed class QueuesResource : ResourceBase
             ct: ct).ConfigureAwait(false);
         return result ?? throw new ApiException("empty body on POST /Queues/{sid}/Members/Front", 200);
     }
+
+    /// <summary>Fetch the page a members list response links to next, following its
+    /// <see cref="Page.NextPageUri"/> verbatim. Returns <c>null</c> when the page is the last
+    /// one.</summary>
+    public Task<QueueMemberList?> NextMembersPageAsync(QueueMemberList page, CancellationToken ct = default)
+        => string.IsNullOrEmpty(page.NextPageUri)
+            ? Task.FromResult<QueueMemberList?>(null)
+            : Transport.SendPageUriAsync<QueueMemberList>(page.NextPageUri!, ct);
 
     /// <summary>Fetch a member by their Call SID.</summary>
     public async Task<QueueMember> GetMemberAsync(string queueSid, string callSid, CancellationToken ct = default)

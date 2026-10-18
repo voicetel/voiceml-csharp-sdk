@@ -22,12 +22,19 @@ public sealed class ConversationsV1ServiceScopeResource
     private readonly Transport _transport;
     private readonly string _chatServiceSid;
 
+    /// <summary>Create and manage messaging threads and their participants, messages and webhooks.</summary>
     public ConversationsV1ServiceConversationsResource Conversations { get; }
+    /// <summary>Manage permission sets assigned to Conversation users and participants.</summary>
     public ConversationsV1ServiceRolesResource Roles { get; }
+    /// <summary>Manage Conversation user identities and their Conversation memberships.</summary>
     public ConversationsV1ServiceUsersResource Users { get; }
+    /// <summary>Channel bindings attached to this resource, preserving their JSON structure.</summary>
     public ConversationsV1ServiceBindingsResource Bindings { get; }
+    /// <summary>Channel or webhook configuration, preserving the service-specific JSON structure.</summary>
     public ConversationsV1ServiceConfigurationResource Configuration { get; }
+    /// <summary>Find Conversations associated with a participant identity or messaging address.</summary>
     public ConversationsV1ServiceParticipantConversationsResource ParticipantConversations { get; }
+    /// <summary>Create a Conversation together with its initial participants.</summary>
     public ConversationsV1ServiceConversationWithParticipantsResource ConversationWithParticipants { get; }
 
     internal ConversationsV1ServiceScopeResource(Transport transport, string chatServiceSid)
@@ -55,6 +62,16 @@ public sealed class ConversationsV1ServiceScopeResource
 public sealed class ConversationsV1ServiceConversationsResource
 {
     private readonly Transport _transport;
+
+    /// <summary>Fetch the /v1 page a list response links to next, following its
+    /// <see cref="VoiceV1Meta.NextPageUrl"/> verbatim — but only when its scheme and host
+    /// equal the configured product host, so credentials never go to a foreign host. Returns
+    /// <c>null</c> when <paramref name="page"/> is the last one.</summary>
+    public Task<T?> NextPageAsync<T>(T page, CancellationToken ct = default) where T : class, IV1PagedList
+        => string.IsNullOrEmpty(page.Meta?.NextPageUrl)
+            ? Task.FromResult<T?>(null)
+            : _transport.SendV1NextPageAsync<T>(page.Meta!.NextPageUrl!, ct);
+
     private readonly string _chatServiceSid;
 
     internal ConversationsV1ServiceConversationsResource(Transport transport, string chatServiceSid)
@@ -63,8 +80,9 @@ public sealed class ConversationsV1ServiceConversationsResource
         _chatServiceSid = chatServiceSid;
     }
 
-    private string BasePath => $"/v1/Services/{_chatServiceSid}/Conversations";
+    private string BasePath => $"/v1/Services/{PathSegment.Encode(_chatServiceSid)}/Conversations";
 
+    /// <summary>Create service conversations. Route: Service Conversations Resource.</summary>
     public async Task<ConversationsV1ServiceConversation> CreateAsync(CreateServiceConversationRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceConversation>(HttpMethod.Post,
@@ -72,6 +90,7 @@ public sealed class ConversationsV1ServiceConversationsResource
         return r ?? throw new ApiException("empty body on POST /v1/Services/{is}/Conversations", 201);
     }
 
+    /// <summary>List service conversations. Route: Service Conversations Resource.</summary>
     public async Task<ConversationsV1ServiceConversationList> ListAsync(ListV1PageParams? filter = null, CancellationToken ct = default)
     {
         var p = filter ?? new ListV1PageParams();
@@ -80,22 +99,25 @@ public sealed class ConversationsV1ServiceConversationsResource
             ?? new ConversationsV1ServiceConversationList();
     }
 
+    /// <summary>Fetch service conversations. Route: Service Conversations Resource.</summary>
     public async Task<ConversationsV1ServiceConversation> GetAsync(string conversationSid, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceConversation>(HttpMethod.Get,
-            $"{BasePath}/{conversationSid}", ct: ct).ConfigureAwait(false);
+            $"{BasePath}/{PathSegment.Encode(conversationSid)}", ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on GET /v1/Services/{is}/Conversations/{sid}", 200);
     }
 
+    /// <summary>Update service conversations. Route: Service Conversations Resource.</summary>
     public async Task<ConversationsV1ServiceConversation> UpdateAsync(string conversationSid, UpdateServiceConversationRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceConversation>(HttpMethod.Post,
-            $"{BasePath}/{conversationSid}", formBody: request.ToForm(), ct: ct).ConfigureAwait(false);
+            $"{BasePath}/{PathSegment.Encode(conversationSid)}", formBody: request.ToForm(), ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on POST /v1/Services/{is}/Conversations/{sid}", 200);
     }
 
+    /// <summary>Delete service conversations. Route: Service Conversations Resource.</summary>
     public Task DeleteAsync(string conversationSid, CancellationToken ct = default) =>
-        _transport.SendAsync<object>(HttpMethod.Delete, $"{BasePath}/{conversationSid}", ct: ct);
+        _transport.SendAsync<object>(HttpMethod.Delete, $"{BasePath}/{PathSegment.Encode(conversationSid)}", ct: ct);
 
     /// <summary>Scope to a specific Conversation's <c>/Messages</c> sub-resource (service-scoped).</summary>
     public ConversationsV1ServiceMessagesScope Messages(string conversationSid) =>
@@ -114,6 +136,15 @@ public sealed class ConversationsV1ServiceConversationsResource
 public sealed class ConversationsV1ServiceMessagesScope
 {
     private readonly Transport _transport;
+    /// <summary>Fetch the /v1 page a list response links to next, following its
+    /// <see cref="VoiceV1Meta.NextPageUrl"/> verbatim — but only when its scheme and host
+    /// equal the configured product host, so credentials never go to a foreign host. Returns
+    /// <c>null</c> when <paramref name="page"/> is the last one.</summary>
+    public Task<T?> NextPageAsync<T>(T page, CancellationToken ct = default) where T : class, IV1PagedList
+        => string.IsNullOrEmpty(page.Meta?.NextPageUrl)
+            ? Task.FromResult<T?>(null)
+            : _transport.SendV1NextPageAsync<T>(page.Meta!.NextPageUrl!, ct);
+
     private readonly string _chatServiceSid;
     private readonly string _conversationSid;
 
@@ -124,8 +155,9 @@ public sealed class ConversationsV1ServiceMessagesScope
         _conversationSid = conversationSid;
     }
 
-    private string BasePath => $"/v1/Services/{_chatServiceSid}/Conversations/{_conversationSid}/Messages";
+    private string BasePath => $"/v1/Services/{PathSegment.Encode(_chatServiceSid)}/Conversations/{PathSegment.Encode(_conversationSid)}/Messages";
 
+    /// <summary>Create service messages. Route: Service Messages Scope.</summary>
     public async Task<ConversationsV1ServiceConversationMessage> CreateAsync(CreateServiceConversationMessageRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceConversationMessage>(HttpMethod.Post,
@@ -133,6 +165,7 @@ public sealed class ConversationsV1ServiceMessagesScope
         return r ?? throw new ApiException("empty body on POST .../Messages", 201);
     }
 
+    /// <summary>List service messages. Route: Service Messages Scope.</summary>
     public async Task<ConversationsV1ServiceConversationMessageList> ListAsync(ListV1PageParams? filter = null, CancellationToken ct = default)
     {
         var p = filter ?? new ListV1PageParams();
@@ -141,22 +174,25 @@ public sealed class ConversationsV1ServiceMessagesScope
             ?? new ConversationsV1ServiceConversationMessageList();
     }
 
+    /// <summary>Fetch service messages. Route: Service Messages Scope.</summary>
     public async Task<ConversationsV1ServiceConversationMessage> GetAsync(string messageSid, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceConversationMessage>(HttpMethod.Get,
-            $"{BasePath}/{messageSid}", ct: ct).ConfigureAwait(false);
+            $"{BasePath}/{PathSegment.Encode(messageSid)}", ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on GET .../Messages/{sid}", 200);
     }
 
+    /// <summary>Update service messages. Route: Service Messages Scope.</summary>
     public async Task<ConversationsV1ServiceConversationMessage> UpdateAsync(string messageSid, UpdateServiceConversationMessageRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceConversationMessage>(HttpMethod.Post,
-            $"{BasePath}/{messageSid}", formBody: request.ToForm(), ct: ct).ConfigureAwait(false);
+            $"{BasePath}/{PathSegment.Encode(messageSid)}", formBody: request.ToForm(), ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on POST .../Messages/{sid}", 200);
     }
 
+    /// <summary>Delete service messages. Route: Service Messages Scope.</summary>
     public Task DeleteAsync(string messageSid, CancellationToken ct = default) =>
-        _transport.SendAsync<object>(HttpMethod.Delete, $"{BasePath}/{messageSid}", ct: ct);
+        _transport.SendAsync<object>(HttpMethod.Delete, $"{BasePath}/{PathSegment.Encode(messageSid)}", ct: ct);
 
     /// <summary>Scope to a specific Message's <c>/Receipts</c> sub-resource (service-scoped).</summary>
     public ConversationsV1ServiceReceiptsScope Receipts(string messageSid) =>
@@ -167,6 +203,15 @@ public sealed class ConversationsV1ServiceMessagesScope
 public sealed class ConversationsV1ServiceReceiptsScope
 {
     private readonly Transport _transport;
+    /// <summary>Fetch the /v1 page a list response links to next, following its
+    /// <see cref="VoiceV1Meta.NextPageUrl"/> verbatim — but only when its scheme and host
+    /// equal the configured product host, so credentials never go to a foreign host. Returns
+    /// <c>null</c> when <paramref name="page"/> is the last one.</summary>
+    public Task<T?> NextPageAsync<T>(T page, CancellationToken ct = default) where T : class, IV1PagedList
+        => string.IsNullOrEmpty(page.Meta?.NextPageUrl)
+            ? Task.FromResult<T?>(null)
+            : _transport.SendV1NextPageAsync<T>(page.Meta!.NextPageUrl!, ct);
+
     private readonly string _chatServiceSid;
     private readonly string _conversationSid;
     private readonly string _messageSid;
@@ -180,8 +225,9 @@ public sealed class ConversationsV1ServiceReceiptsScope
     }
 
     private string BasePath =>
-        $"/v1/Services/{_chatServiceSid}/Conversations/{_conversationSid}/Messages/{_messageSid}/Receipts";
+        $"/v1/Services/{PathSegment.Encode(_chatServiceSid)}/Conversations/{PathSegment.Encode(_conversationSid)}/Messages/{PathSegment.Encode(_messageSid)}/Receipts";
 
+    /// <summary>List service receipts. Route: Service Receipts Scope.</summary>
     public async Task<ConversationsV1ServiceConversationMessageReceiptList> ListAsync(ListV1PageParams? filter = null, CancellationToken ct = default)
     {
         var p = filter ?? new ListV1PageParams();
@@ -190,10 +236,11 @@ public sealed class ConversationsV1ServiceReceiptsScope
             ?? new ConversationsV1ServiceConversationMessageReceiptList();
     }
 
+    /// <summary>Fetch service receipts. Route: Service Receipts Scope.</summary>
     public async Task<ConversationsV1ServiceConversationMessageReceipt> GetAsync(string receiptSid, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceConversationMessageReceipt>(HttpMethod.Get,
-            $"{BasePath}/{receiptSid}", ct: ct).ConfigureAwait(false);
+            $"{BasePath}/{PathSegment.Encode(receiptSid)}", ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on GET .../Receipts/{sid}", 200);
     }
 }
@@ -202,6 +249,15 @@ public sealed class ConversationsV1ServiceReceiptsScope
 public sealed class ConversationsV1ServiceParticipantsScope
 {
     private readonly Transport _transport;
+    /// <summary>Fetch the /v1 page a list response links to next, following its
+    /// <see cref="VoiceV1Meta.NextPageUrl"/> verbatim — but only when its scheme and host
+    /// equal the configured product host, so credentials never go to a foreign host. Returns
+    /// <c>null</c> when <paramref name="page"/> is the last one.</summary>
+    public Task<T?> NextPageAsync<T>(T page, CancellationToken ct = default) where T : class, IV1PagedList
+        => string.IsNullOrEmpty(page.Meta?.NextPageUrl)
+            ? Task.FromResult<T?>(null)
+            : _transport.SendV1NextPageAsync<T>(page.Meta!.NextPageUrl!, ct);
+
     private readonly string _chatServiceSid;
     private readonly string _conversationSid;
 
@@ -212,8 +268,9 @@ public sealed class ConversationsV1ServiceParticipantsScope
         _conversationSid = conversationSid;
     }
 
-    private string BasePath => $"/v1/Services/{_chatServiceSid}/Conversations/{_conversationSid}/Participants";
+    private string BasePath => $"/v1/Services/{PathSegment.Encode(_chatServiceSid)}/Conversations/{PathSegment.Encode(_conversationSid)}/Participants";
 
+    /// <summary>Create service participants. Route: Service Participants Scope.</summary>
     public async Task<ConversationsV1ServiceConversationParticipant> CreateAsync(CreateServiceConversationParticipantRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceConversationParticipant>(HttpMethod.Post,
@@ -221,6 +278,7 @@ public sealed class ConversationsV1ServiceParticipantsScope
         return r ?? throw new ApiException("empty body on POST .../Participants", 201);
     }
 
+    /// <summary>List service participants. Route: Service Participants Scope.</summary>
     public async Task<ConversationsV1ServiceConversationParticipantList> ListAsync(ListV1PageParams? filter = null, CancellationToken ct = default)
     {
         var p = filter ?? new ListV1PageParams();
@@ -229,28 +287,40 @@ public sealed class ConversationsV1ServiceParticipantsScope
             ?? new ConversationsV1ServiceConversationParticipantList();
     }
 
+    /// <summary>Fetch service participants. Route: Service Participants Scope.</summary>
     public async Task<ConversationsV1ServiceConversationParticipant> GetAsync(string participantSid, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceConversationParticipant>(HttpMethod.Get,
-            $"{BasePath}/{participantSid}", ct: ct).ConfigureAwait(false);
+            $"{BasePath}/{PathSegment.Encode(participantSid)}", ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on GET .../Participants/{sid}", 200);
     }
 
+    /// <summary>Update service participants. Route: Service Participants Scope.</summary>
     public async Task<ConversationsV1ServiceConversationParticipant> UpdateAsync(string participantSid, UpdateServiceConversationParticipantRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceConversationParticipant>(HttpMethod.Post,
-            $"{BasePath}/{participantSid}", formBody: request.ToForm(), ct: ct).ConfigureAwait(false);
+            $"{BasePath}/{PathSegment.Encode(participantSid)}", formBody: request.ToForm(), ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on POST .../Participants/{sid}", 200);
     }
 
+    /// <summary>Delete service participants. Route: Service Participants Scope.</summary>
     public Task DeleteAsync(string participantSid, CancellationToken ct = default) =>
-        _transport.SendAsync<object>(HttpMethod.Delete, $"{BasePath}/{participantSid}", ct: ct);
+        _transport.SendAsync<object>(HttpMethod.Delete, $"{BasePath}/{PathSegment.Encode(participantSid)}", ct: ct);
 }
 
 /// <summary>Operations on <c>/v1/Services/{IS…}/Conversations/{CH…}/Webhooks</c> (conversation-scoped webhooks).</summary>
 public sealed class ConversationsV1ServiceWebhooksScope
 {
     private readonly Transport _transport;
+    /// <summary>Fetch the /v1 page a list response links to next, following its
+    /// <see cref="VoiceV1Meta.NextPageUrl"/> verbatim — but only when its scheme and host
+    /// equal the configured product host, so credentials never go to a foreign host. Returns
+    /// <c>null</c> when <paramref name="page"/> is the last one.</summary>
+    public Task<T?> NextPageAsync<T>(T page, CancellationToken ct = default) where T : class, IV1PagedList
+        => string.IsNullOrEmpty(page.Meta?.NextPageUrl)
+            ? Task.FromResult<T?>(null)
+            : _transport.SendV1NextPageAsync<T>(page.Meta!.NextPageUrl!, ct);
+
     private readonly string _chatServiceSid;
     private readonly string _conversationSid;
 
@@ -261,8 +331,9 @@ public sealed class ConversationsV1ServiceWebhooksScope
         _conversationSid = conversationSid;
     }
 
-    private string BasePath => $"/v1/Services/{_chatServiceSid}/Conversations/{_conversationSid}/Webhooks";
+    private string BasePath => $"/v1/Services/{PathSegment.Encode(_chatServiceSid)}/Conversations/{PathSegment.Encode(_conversationSid)}/Webhooks";
 
+    /// <summary>Create service webhooks. Route: Service Webhooks Scope.</summary>
     public async Task<ConversationsV1ServiceConversationScopedWebhook> CreateAsync(CreateServiceConversationScopedWebhookRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceConversationScopedWebhook>(HttpMethod.Post,
@@ -270,6 +341,7 @@ public sealed class ConversationsV1ServiceWebhooksScope
         return r ?? throw new ApiException("empty body on POST .../Webhooks", 201);
     }
 
+    /// <summary>List service webhooks. Route: Service Webhooks Scope.</summary>
     public async Task<ConversationsV1ServiceConversationScopedWebhookList> ListAsync(ListV1PageParams? filter = null, CancellationToken ct = default)
     {
         var p = filter ?? new ListV1PageParams();
@@ -278,22 +350,25 @@ public sealed class ConversationsV1ServiceWebhooksScope
             ?? new ConversationsV1ServiceConversationScopedWebhookList();
     }
 
+    /// <summary>Fetch service webhooks. Route: Service Webhooks Scope.</summary>
     public async Task<ConversationsV1ServiceConversationScopedWebhook> GetAsync(string webhookSid, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceConversationScopedWebhook>(HttpMethod.Get,
-            $"{BasePath}/{webhookSid}", ct: ct).ConfigureAwait(false);
+            $"{BasePath}/{PathSegment.Encode(webhookSid)}", ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on GET .../Webhooks/{sid}", 200);
     }
 
+    /// <summary>Update service webhooks. Route: Service Webhooks Scope.</summary>
     public async Task<ConversationsV1ServiceConversationScopedWebhook> UpdateAsync(string webhookSid, UpdateServiceConversationScopedWebhookRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceConversationScopedWebhook>(HttpMethod.Post,
-            $"{BasePath}/{webhookSid}", formBody: request.ToForm(), ct: ct).ConfigureAwait(false);
+            $"{BasePath}/{PathSegment.Encode(webhookSid)}", formBody: request.ToForm(), ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on POST .../Webhooks/{sid}", 200);
     }
 
+    /// <summary>Delete service webhooks. Route: Service Webhooks Scope.</summary>
     public Task DeleteAsync(string webhookSid, CancellationToken ct = default) =>
-        _transport.SendAsync<object>(HttpMethod.Delete, $"{BasePath}/{webhookSid}", ct: ct);
+        _transport.SendAsync<object>(HttpMethod.Delete, $"{BasePath}/{PathSegment.Encode(webhookSid)}", ct: ct);
 }
 
 // ---- /v1/Services/{IS…}/Roles ---------------------------------------------
@@ -302,6 +377,15 @@ public sealed class ConversationsV1ServiceWebhooksScope
 public sealed class ConversationsV1ServiceRolesResource
 {
     private readonly Transport _transport;
+    /// <summary>Fetch the /v1 page a list response links to next, following its
+    /// <see cref="VoiceV1Meta.NextPageUrl"/> verbatim — but only when its scheme and host
+    /// equal the configured product host, so credentials never go to a foreign host. Returns
+    /// <c>null</c> when <paramref name="page"/> is the last one.</summary>
+    public Task<T?> NextPageAsync<T>(T page, CancellationToken ct = default) where T : class, IV1PagedList
+        => string.IsNullOrEmpty(page.Meta?.NextPageUrl)
+            ? Task.FromResult<T?>(null)
+            : _transport.SendV1NextPageAsync<T>(page.Meta!.NextPageUrl!, ct);
+
     private readonly string _chatServiceSid;
 
     internal ConversationsV1ServiceRolesResource(Transport transport, string chatServiceSid)
@@ -310,8 +394,9 @@ public sealed class ConversationsV1ServiceRolesResource
         _chatServiceSid = chatServiceSid;
     }
 
-    private string BasePath => $"/v1/Services/{_chatServiceSid}/Roles";
+    private string BasePath => $"/v1/Services/{PathSegment.Encode(_chatServiceSid)}/Roles";
 
+    /// <summary>Create service roles. Route: Service Roles Resource.</summary>
     public async Task<ConversationsV1ServiceRole> CreateAsync(CreateServiceRoleRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceRole>(HttpMethod.Post,
@@ -319,6 +404,7 @@ public sealed class ConversationsV1ServiceRolesResource
         return r ?? throw new ApiException("empty body on POST .../Roles", 201);
     }
 
+    /// <summary>List service roles. Route: Service Roles Resource.</summary>
     public async Task<ConversationsV1ServiceRoleList> ListAsync(ListV1PageParams? filter = null, CancellationToken ct = default)
     {
         var p = filter ?? new ListV1PageParams();
@@ -327,22 +413,25 @@ public sealed class ConversationsV1ServiceRolesResource
             ?? new ConversationsV1ServiceRoleList();
     }
 
+    /// <summary>Fetch service roles. Route: Service Roles Resource.</summary>
     public async Task<ConversationsV1ServiceRole> GetAsync(string sid, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceRole>(HttpMethod.Get,
-            $"{BasePath}/{sid}", ct: ct).ConfigureAwait(false);
+            $"{BasePath}/{PathSegment.Encode(sid)}", ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on GET .../Roles/{sid}", 200);
     }
 
+    /// <summary>Update service roles. Route: Service Roles Resource.</summary>
     public async Task<ConversationsV1ServiceRole> UpdateAsync(string sid, UpdateServiceRoleRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceRole>(HttpMethod.Post,
-            $"{BasePath}/{sid}", formBody: request.ToForm(), ct: ct).ConfigureAwait(false);
+            $"{BasePath}/{PathSegment.Encode(sid)}", formBody: request.ToForm(), ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on POST .../Roles/{sid}", 200);
     }
 
+    /// <summary>Delete service roles. Route: Service Roles Resource.</summary>
     public Task DeleteAsync(string sid, CancellationToken ct = default) =>
-        _transport.SendAsync<object>(HttpMethod.Delete, $"{BasePath}/{sid}", ct: ct);
+        _transport.SendAsync<object>(HttpMethod.Delete, $"{BasePath}/{PathSegment.Encode(sid)}", ct: ct);
 }
 
 // ---- /v1/Services/{IS…}/Users (+ /Conversations scope) --------------------
@@ -352,6 +441,15 @@ public sealed class ConversationsV1ServiceRolesResource
 public sealed class ConversationsV1ServiceUsersResource
 {
     private readonly Transport _transport;
+    /// <summary>Fetch the /v1 page a list response links to next, following its
+    /// <see cref="VoiceV1Meta.NextPageUrl"/> verbatim — but only when its scheme and host
+    /// equal the configured product host, so credentials never go to a foreign host. Returns
+    /// <c>null</c> when <paramref name="page"/> is the last one.</summary>
+    public Task<T?> NextPageAsync<T>(T page, CancellationToken ct = default) where T : class, IV1PagedList
+        => string.IsNullOrEmpty(page.Meta?.NextPageUrl)
+            ? Task.FromResult<T?>(null)
+            : _transport.SendV1NextPageAsync<T>(page.Meta!.NextPageUrl!, ct);
+
     private readonly string _chatServiceSid;
 
     internal ConversationsV1ServiceUsersResource(Transport transport, string chatServiceSid)
@@ -360,8 +458,9 @@ public sealed class ConversationsV1ServiceUsersResource
         _chatServiceSid = chatServiceSid;
     }
 
-    private string BasePath => $"/v1/Services/{_chatServiceSid}/Users";
+    private string BasePath => $"/v1/Services/{PathSegment.Encode(_chatServiceSid)}/Users";
 
+    /// <summary>Create service users. Route: Service Users Resource.</summary>
     public async Task<ConversationsV1ServiceUser> CreateAsync(CreateServiceUserRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceUser>(HttpMethod.Post,
@@ -369,6 +468,7 @@ public sealed class ConversationsV1ServiceUsersResource
         return r ?? throw new ApiException("empty body on POST .../Users", 201);
     }
 
+    /// <summary>List service users. Route: Service Users Resource.</summary>
     public async Task<ConversationsV1ServiceUserList> ListAsync(ListV1PageParams? filter = null, CancellationToken ct = default)
     {
         var p = filter ?? new ListV1PageParams();
@@ -377,22 +477,25 @@ public sealed class ConversationsV1ServiceUsersResource
             ?? new ConversationsV1ServiceUserList();
     }
 
+    /// <summary>Fetch service users. Route: Service Users Resource.</summary>
     public async Task<ConversationsV1ServiceUser> GetAsync(string sid, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceUser>(HttpMethod.Get,
-            $"{BasePath}/{sid}", ct: ct).ConfigureAwait(false);
+            $"{BasePath}/{PathSegment.Encode(sid)}", ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on GET .../Users/{sid}", 200);
     }
 
+    /// <summary>Update service users. Route: Service Users Resource.</summary>
     public async Task<ConversationsV1ServiceUser> UpdateAsync(string sid, UpdateServiceUserRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceUser>(HttpMethod.Post,
-            $"{BasePath}/{sid}", formBody: request.ToForm(), ct: ct).ConfigureAwait(false);
+            $"{BasePath}/{PathSegment.Encode(sid)}", formBody: request.ToForm(), ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on POST .../Users/{sid}", 200);
     }
 
+    /// <summary>Delete service users. Route: Service Users Resource.</summary>
     public Task DeleteAsync(string sid, CancellationToken ct = default) =>
-        _transport.SendAsync<object>(HttpMethod.Delete, $"{BasePath}/{sid}", ct: ct);
+        _transport.SendAsync<object>(HttpMethod.Delete, $"{BasePath}/{PathSegment.Encode(sid)}", ct: ct);
 
     /// <summary>Scope to a specific User's <c>/Conversations</c> (UserConversation) sub-resource (service-scoped, list-only).</summary>
     public ConversationsV1ServiceUserConversationsScope Conversations(string userSid) =>
@@ -403,6 +506,15 @@ public sealed class ConversationsV1ServiceUsersResource
 public sealed class ConversationsV1ServiceUserConversationsScope
 {
     private readonly Transport _transport;
+    /// <summary>Fetch the /v1 page a list response links to next, following its
+    /// <see cref="VoiceV1Meta.NextPageUrl"/> verbatim — but only when its scheme and host
+    /// equal the configured product host, so credentials never go to a foreign host. Returns
+    /// <c>null</c> when <paramref name="page"/> is the last one.</summary>
+    public Task<T?> NextPageAsync<T>(T page, CancellationToken ct = default) where T : class, IV1PagedList
+        => string.IsNullOrEmpty(page.Meta?.NextPageUrl)
+            ? Task.FromResult<T?>(null)
+            : _transport.SendV1NextPageAsync<T>(page.Meta!.NextPageUrl!, ct);
+
     private readonly string _chatServiceSid;
     private readonly string _userSid;
 
@@ -413,8 +525,9 @@ public sealed class ConversationsV1ServiceUserConversationsScope
         _userSid = userSid;
     }
 
-    private string BasePath => $"/v1/Services/{_chatServiceSid}/Users/{_userSid}/Conversations";
+    private string BasePath => $"/v1/Services/{PathSegment.Encode(_chatServiceSid)}/Users/{PathSegment.Encode(_userSid)}/Conversations";
 
+    /// <summary>List service user conversations. Route: Service User Conversations Scope.</summary>
     public async Task<ConversationsV1ServiceUserConversationList> ListAsync(ListV1PageParams? filter = null, CancellationToken ct = default)
     {
         var p = filter ?? new ListV1PageParams();
@@ -430,6 +543,15 @@ public sealed class ConversationsV1ServiceUserConversationsScope
 public sealed class ConversationsV1ServiceBindingsResource
 {
     private readonly Transport _transport;
+    /// <summary>Fetch the /v1 page a list response links to next, following its
+    /// <see cref="VoiceV1Meta.NextPageUrl"/> verbatim — but only when its scheme and host
+    /// equal the configured product host, so credentials never go to a foreign host. Returns
+    /// <c>null</c> when <paramref name="page"/> is the last one.</summary>
+    public Task<T?> NextPageAsync<T>(T page, CancellationToken ct = default) where T : class, IV1PagedList
+        => string.IsNullOrEmpty(page.Meta?.NextPageUrl)
+            ? Task.FromResult<T?>(null)
+            : _transport.SendV1NextPageAsync<T>(page.Meta!.NextPageUrl!, ct);
+
     private readonly string _chatServiceSid;
 
     internal ConversationsV1ServiceBindingsResource(Transport transport, string chatServiceSid)
@@ -438,8 +560,9 @@ public sealed class ConversationsV1ServiceBindingsResource
         _chatServiceSid = chatServiceSid;
     }
 
-    private string BasePath => $"/v1/Services/{_chatServiceSid}/Bindings";
+    private string BasePath => $"/v1/Services/{PathSegment.Encode(_chatServiceSid)}/Bindings";
 
+    /// <summary>List service bindings. Route: Service Bindings Resource.</summary>
     public async Task<ConversationsV1ServiceBindingList> ListAsync(ListServiceBindingsParams? filter = null, CancellationToken ct = default)
     {
         var p = filter ?? new ListServiceBindingsParams();
@@ -448,15 +571,17 @@ public sealed class ConversationsV1ServiceBindingsResource
             ?? new ConversationsV1ServiceBindingList();
     }
 
+    /// <summary>Fetch service bindings. Route: Service Bindings Resource.</summary>
     public async Task<ConversationsV1ServiceBinding> GetAsync(string sid, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceBinding>(HttpMethod.Get,
-            $"{BasePath}/{sid}", ct: ct).ConfigureAwait(false);
+            $"{BasePath}/{PathSegment.Encode(sid)}", ct: ct).ConfigureAwait(false);
         return r ?? throw new ApiException("empty body on GET .../Bindings/{sid}", 200);
     }
 
+    /// <summary>Delete service bindings. Route: Service Bindings Resource.</summary>
     public Task DeleteAsync(string sid, CancellationToken ct = default) =>
-        _transport.SendAsync<object>(HttpMethod.Delete, $"{BasePath}/{sid}", ct: ct);
+        _transport.SendAsync<object>(HttpMethod.Delete, $"{BasePath}/{PathSegment.Encode(sid)}", ct: ct);
 }
 
 // ---- /v1/Services/{IS…}/Configuration (+ /Notifications + /Webhooks) ------
@@ -468,7 +593,9 @@ public sealed class ConversationsV1ServiceConfigurationResource
     private readonly Transport _transport;
     private readonly string _chatServiceSid;
 
+    /// <summary>Configure push notification events, sounds and message templates for the service.</summary>
     public ConversationsV1ServiceNotificationResource Notifications { get; }
+    /// <summary>Configure callback URLs, HTTP methods and event filters for Conversation webhooks.</summary>
     public ConversationsV1ServiceWebhookConfigurationResource Webhooks { get; }
 
     internal ConversationsV1ServiceConfigurationResource(Transport transport, string chatServiceSid)
@@ -479,8 +606,9 @@ public sealed class ConversationsV1ServiceConfigurationResource
         Webhooks = new ConversationsV1ServiceWebhookConfigurationResource(transport, chatServiceSid);
     }
 
-    private string BasePath => $"/v1/Services/{_chatServiceSid}/Configuration";
+    private string BasePath => $"/v1/Services/{PathSegment.Encode(_chatServiceSid)}/Configuration";
 
+    /// <summary>Fetch service configuration. Route: Service Configuration Resource.</summary>
     public async Task<ConversationsV1ServiceConfiguration> FetchAsync(CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceConfiguration>(HttpMethod.Get,
@@ -488,6 +616,7 @@ public sealed class ConversationsV1ServiceConfigurationResource
         return r ?? throw new ApiException("empty body on GET .../Configuration", 200);
     }
 
+    /// <summary>Update service configuration. Route: Service Configuration Resource.</summary>
     public async Task<ConversationsV1ServiceConfiguration> UpdateAsync(UpdateServiceConfigurationRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceConfiguration>(HttpMethod.Post,
@@ -508,8 +637,9 @@ public sealed class ConversationsV1ServiceNotificationResource
         _chatServiceSid = chatServiceSid;
     }
 
-    private string BasePath => $"/v1/Services/{_chatServiceSid}/Configuration/Notifications";
+    private string BasePath => $"/v1/Services/{PathSegment.Encode(_chatServiceSid)}/Configuration/Notifications";
 
+    /// <summary>Fetch service notification. Route: Service Notification Resource.</summary>
     public async Task<ConversationsV1ServiceNotification> FetchAsync(CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceNotification>(HttpMethod.Get,
@@ -517,6 +647,7 @@ public sealed class ConversationsV1ServiceNotificationResource
         return r ?? throw new ApiException("empty body on GET .../Configuration/Notifications", 200);
     }
 
+    /// <summary>Update service notification. Route: Service Notification Resource.</summary>
     public async Task<ConversationsV1ServiceNotification> UpdateAsync(UpdateServiceNotificationRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceNotification>(HttpMethod.Post,
@@ -537,8 +668,9 @@ public sealed class ConversationsV1ServiceWebhookConfigurationResource
         _chatServiceSid = chatServiceSid;
     }
 
-    private string BasePath => $"/v1/Services/{_chatServiceSid}/Configuration/Webhooks";
+    private string BasePath => $"/v1/Services/{PathSegment.Encode(_chatServiceSid)}/Configuration/Webhooks";
 
+    /// <summary>Fetch service webhook configuration. Route: Service Webhook Configuration Resource.</summary>
     public async Task<ConversationsV1ServiceWebhookConfiguration> FetchAsync(CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceWebhookConfiguration>(HttpMethod.Get,
@@ -546,6 +678,7 @@ public sealed class ConversationsV1ServiceWebhookConfigurationResource
         return r ?? throw new ApiException("empty body on GET .../Configuration/Webhooks", 200);
     }
 
+    /// <summary>Update service webhook configuration. Route: Service Webhook Configuration Resource.</summary>
     public async Task<ConversationsV1ServiceWebhookConfiguration> UpdateAsync(UpdateServiceWebhookConfigurationRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceWebhookConfiguration>(HttpMethod.Post,
@@ -560,6 +693,15 @@ public sealed class ConversationsV1ServiceWebhookConfigurationResource
 public sealed class ConversationsV1ServiceParticipantConversationsResource
 {
     private readonly Transport _transport;
+    /// <summary>Fetch the /v1 page a list response links to next, following its
+    /// <see cref="VoiceV1Meta.NextPageUrl"/> verbatim — but only when its scheme and host
+    /// equal the configured product host, so credentials never go to a foreign host. Returns
+    /// <c>null</c> when <paramref name="page"/> is the last one.</summary>
+    public Task<T?> NextPageAsync<T>(T page, CancellationToken ct = default) where T : class, IV1PagedList
+        => string.IsNullOrEmpty(page.Meta?.NextPageUrl)
+            ? Task.FromResult<T?>(null)
+            : _transport.SendV1NextPageAsync<T>(page.Meta!.NextPageUrl!, ct);
+
     private readonly string _chatServiceSid;
 
     internal ConversationsV1ServiceParticipantConversationsResource(Transport transport, string chatServiceSid)
@@ -568,8 +710,9 @@ public sealed class ConversationsV1ServiceParticipantConversationsResource
         _chatServiceSid = chatServiceSid;
     }
 
-    private string BasePath => $"/v1/Services/{_chatServiceSid}/ParticipantConversations";
+    private string BasePath => $"/v1/Services/{PathSegment.Encode(_chatServiceSid)}/ParticipantConversations";
 
+    /// <summary>List service participant conversations. Route: Service Participant Conversations Resource.</summary>
     public async Task<ConversationsV1ServiceParticipantConversationList> ListAsync(ListServiceParticipantConversationsParams? filter = null, CancellationToken ct = default)
     {
         var p = filter ?? new ListServiceParticipantConversationsParams();
@@ -591,8 +734,9 @@ public sealed class ConversationsV1ServiceConversationWithParticipantsResource
         _chatServiceSid = chatServiceSid;
     }
 
-    private string BasePath => $"/v1/Services/{_chatServiceSid}/ConversationWithParticipants";
+    private string BasePath => $"/v1/Services/{PathSegment.Encode(_chatServiceSid)}/ConversationWithParticipants";
 
+    /// <summary>Create service conversation with participants. Route: Service Conversation With Participants Resource.</summary>
     public async Task<ConversationsV1ServiceConversationWithParticipants> CreateAsync(CreateServiceConversationWithParticipantsRequest request, CancellationToken ct = default)
     {
         var r = await _transport.SendAsync<ConversationsV1ServiceConversationWithParticipants>(HttpMethod.Post,

@@ -1,0 +1,47 @@
+# Changelog
+
+All notable changes are recorded here in Keep a Changelog format.
+
+## [Unreleased]
+
+### Breaking changes
+
+- Remove GET `/2010-04-01/Accounts/{AccountSid}/Calls/{CallSid}/Streams.json` and `/Streams/{Sid}.json`, `/Siprec.json` and `/Siprec/{Sid}.json`, and `/Transcriptions.json` and `/Transcriptions/{Sid}.json`. The server returns 405 / error 20004 for these six endpoints. POST start/stop operations remain available; remove their obsolete list models.
+- Remove `StartTimeGte` and `StartTimeLte` from calls-list parameters. Use the declared `StartTime`, `StartTimeLt`, `StartTimeGt` and EndTime equivalents.
+- Call-recording lists take `ListCallRecordingsParams`; account-only CallSid/ConferenceSid/IncludeSoftDeleted filters are not sent to `/Calls/{CallSid}/Recordings.json`.
+- Local/Mobile/TollFree incoming-number creates take `CreateTypedIncomingPhoneNumberOptions`; those endpoints do not declare VoiceFallbackUrl/VoiceFallbackMethod. Six Assistant list endpoints now take PageSize-only parameters.
+- Conference-recording updates take `UpdateConferenceRecordingRequest`; PauseBehavior belongs only to call-recording updates.
+- Remove blocking IncomingPhoneNumbers List/Create/Get/Update/Delete wrappers. Use the asynchronous methods and cancellation tokens.
+- Iterators accept pagination settings through their initial filter and follow continuation links thereafter. Remove total/num_pages envelope fields; RecordingList and notification/event lists use the common Page envelope.
+- Make Transport and resolved credentials internal. Normalize ApiException.Code to nullable integer; expose CodeRaw and body Status. Remove the unused ErrorBody model. Notification and event endpoints return typed models.
+- Mark spec-nullable fields nullable, including Participant/Application booleans. Retain unsupported legacy response fields only as optional compatibility data.
+
+### Fixed
+
+- Follow server-provided PageToken links verbatim; validate `/v1` continuation origins and preserve lazy enumeration.
+- Restrict POST/PATCH retries to rate limits and provable connection-establishment failures. Add HTTP-date Retry-After support, a 60-second no-wait cap, and full-jitter backoff.
+- Wrap timeouts and decode failures in SDK exceptions with their causes; preserve caller cancellation and account optimistic-lock conflict details.
+- Encode every caller-controlled path segment and query name, retaining route-defined `.json` suffixes.
+- Add MMS parameters, number SMS routing, Application delivery callbacks, RecordingTrack/PauseBehavior and missing list filters.
+- Recycle pooled HTTP connections and dispose requests/responses on each attempt. Apply authenticated, credential-stripping redirects to binary downloads.
+
+### Added
+
+- Account fetch/update, balance, outgoing caller IDs, message media, account/recording transcriptions, archive exports, conference recording start and OpenAPI YAML/YML operations.
+- Nine Usage Records windows, SIP registrations and Messaging Service sender-pool operations.
+- Monitor v1 alerts: list `GET /v1/Alerts` with `LogLevel`/`StartDate`/`EndDate`/`PageSize` filters and fetch `GET /v1/Alerts/{Sid}`, both on the base host with the `/v1` `meta` envelope. Alerts are a single `PageSize`-limited page with no continuation.
+- Message delivery feedback: `POST /2010-04-01/Accounts/{AccountSid}/Messages/{Sid}/Feedback.json`, echoing the `Outcome` (`confirmed`/`unconfirmed`) as the Feedback resource.
+- Account API key rotation: `POST /2010-04-01/Accounts/{AccountSid}/RotateKey.json` returns the account view plus the freshly generated API key exactly once; a 409 conflict is raised as `ConflictException`.
+- Public next-page helpers, standalone credential-less diagnostics and webhook signature computation/validation.
+- .NET 10 alongside .NET 8, SourceLink, deterministic packaging, XML documentation for the public API, spec-driven contract tests and request/security regression coverage.
+
+### Security
+
+- Redact ClientOptions credentials in default string output and exclude them from JSON serialization.
+- Redact the rotated account API key from `AccountWithKey` default string output so logging the rotation response never leaks it.
+- Restrict pagination origins, reject redirect downgrades, strip credentials across redirect origins and avoid retrying ambiguous non-idempotent failures.
+
+### Docs
+
+- State that VoiceML is not yet on nuget.org and document tested local-feed/ProjectReference installation.
+- Refresh resource coverage, runtime support, authentication, retry/cancellation, pagination, webhook and client-lifecycle guidance; compile the README example in CI.

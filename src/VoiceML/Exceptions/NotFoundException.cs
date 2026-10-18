@@ -4,6 +4,6 @@ namespace VoiceML.Exceptions;
 public sealed class NotFoundException : ApiException
 {
     /// <summary>Construct with structured fields.</summary>
-    public NotFoundException(string message, int statusCode, object? code = null, object? body = null, string? moreInfo = null)
-        : base(message, statusCode, code, body, moreInfo) { }
+    public NotFoundException(string message, int statusCode, int? code = null, object? body = null, string? moreInfo = null, string? codeRaw = null, int? status = null)
+        : base(message, statusCode, code, body, moreInfo, codeRaw, status) { }
 }

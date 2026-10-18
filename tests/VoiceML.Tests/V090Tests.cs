@@ -346,7 +346,7 @@ public class V090Tests
             Assert.Equal("https://conversations.voicetel.com/v1/Configuration/Addresses", req.RequestUri!.ToString());
             var form = ParseForm(req.Content!.ReadAsStringAsync().Result);
             Assert.Equal("sms", form["Type"]);
-            Assert.Equal("+15551234567", form["Address"]);
+            Assert.Equal("+14155550103", form["Address"]);
             Assert.Equal("true", form["AutoCreation.Enabled"]);
             Assert.Equal("webhook", form["AutoCreation.Type"]);
             return Reply(HttpStatusCode.Created, ConfigAddressJson(addrSid));
@@ -355,7 +355,7 @@ public class V090Tests
         var addr = await client.ConversationsV1.Configuration.Addresses.CreateAsync(new CreateConfigAddressRequest
         {
             Type = "sms",
-            Address = "+15551234567",
+            Address = "+14155550103",
             AutoCreationEnabled = true,
             AutoCreationType = "webhook",
             AutoCreationWebhookUrl = "https://hooks.example.com/ac",
@@ -372,13 +372,13 @@ public class V090Tests
         {
             Assert.Equal(HttpMethod.Get, req.Method);
             Assert.Contains("Identity=alice", req.RequestUri!.ToString());
-            Assert.Contains("Address=%2B15551234567", req.RequestUri.ToString());
+            Assert.Contains("Address=%2B14155550103", req.RequestUri.ToString());
             return Reply(HttpStatusCode.OK,
                 "{\"conversations\":[], \"meta\":{\"page\":0,\"page_size\":50,\"key\":\"conversations\"}}");
         });
         using var client = NewClient(handler);
         var list = await client.ConversationsV1.ParticipantConversations.ListAsync(
-            new ListParticipantConversationsParams { Identity = "alice", Address = "+15551234567" });
+            new ListParticipantConversationsParams { Identity = "alice", Address = "+14155550103" });
         Assert.Empty(list.Conversations);
     }
 
@@ -555,7 +555,7 @@ public class V090Tests
     [Fact]
     public async Task RoutesV2_PhoneNumbers_Fetch_UsesV2NamespaceNoAccountPrefix()
     {
-        const string number = "+18005551234";
+        const string number = "+14155550100";
         const string qqSid = "QQ00000000000000000000000000000001";
         Uri? captured = null;
         var handler = new MockHandler(req =>
@@ -568,14 +568,14 @@ public class V090Tests
         Assert.Equal(qqSid, pn.Sid);
         Assert.Equal("us1", pn.VoiceRegion);
         Assert.NotNull(captured);
-        Assert.Equal($"https://voiceml.voicetel.com/v2/PhoneNumbers/{number}", captured!.ToString());
+        Assert.Equal("https://voiceml.voicetel.com/v2/PhoneNumbers/%2B14155550100", captured!.AbsoluteUri);
         Assert.DoesNotContain(AccSid, captured.ToString());
     }
 
     [Fact]
     public async Task RoutesV2_PhoneNumbers_Update_SendsForm()
     {
-        const string number = "+18005551234";
+        const string number = "+14155550100";
         const string qqSid = "QQ00000000000000000000000000000002";
         var handler = new MockHandler(req =>
         {
@@ -627,7 +627,7 @@ public class V090Tests
         "\"date_updated\":\"2026-06-27T00:00:00Z\",\"url\":\"\"}";
 
     private static string ConfigAddressJson(string sid) =>
-        "{\"sid\":\"" + sid + "\",\"type\":\"sms\",\"address\":\"+15551234567\"," +
+        "{\"sid\":\"" + sid + "\",\"type\":\"sms\",\"address\":\"+14155550103\"," +
         "\"account_sid\":\"" + AccSid + "\",\"date_created\":\"2026-06-27T00:00:00Z\"," +
         "\"date_updated\":\"2026-06-27T00:00:00Z\",\"url\":\"\"}";
 

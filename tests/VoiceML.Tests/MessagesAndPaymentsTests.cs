@@ -36,14 +36,14 @@ public class MessagesAndPaymentsTests
 
             var body = req.Content!.ReadAsStringAsync().Result;
             var form = ParseForm(body);
-            Assert.Equal("+18005550000", form["To"]);
+            Assert.Equal("+14155550101", form["To"]);
             Assert.Equal("hello-world", form["Body"]);
-            Assert.Equal("+18005551234", form["From"]);
+            Assert.Equal("+14155550100", form["From"]);
             Assert.Equal("https://example.com/sms-status", form["StatusCallback"]);
 
             return Reply(HttpStatusCode.Created, $$"""
                 {"sid":"{{MsgSid}}","account_sid":"{{Sid}}","api_version":"2010-04-01",
-                 "to":"+18005550000","from":"+18005551234","body":"hello-world",
+                 "to":"+14155550101","from":"+14155550100","body":"hello-world",
                  "status":"sent","num_segments":"1","num_media":"0","direction":"outbound-api",
                  "price":null,"price_unit":null,"error_code":null,"error_message":null,
                  "messaging_service_sid":null,
@@ -56,9 +56,9 @@ public class MessagesAndPaymentsTests
         using var client = NewClient(handler);
         var msg = await client.Messages.CreateAsync(new CreateMessageRequest
         {
-            To = "+18005550000",
+            To = "+14155550101",
             Body = "hello-world",
-            From = "+18005551234",
+            From = "+14155550100",
             StatusCallback = "https://example.com/sms-status",
         });
         Assert.Equal(MsgSid, msg.Sid);
@@ -82,7 +82,7 @@ public class MessagesAndPaymentsTests
             Assert.EndsWith($"/Messages/{MsgSid}.json", req.RequestUri!.AbsolutePath);
             return Reply(HttpStatusCode.OK, $$"""
                 {"sid":"{{MsgSid}}","account_sid":"{{Sid}}","api_version":"2010-04-01",
-                 "to":"+18005550000","from":"+18005551234","body":"oops","status":"failed",
+                 "to":"+14155550101","from":"+14155550100","body":"oops","status":"failed",
                  "num_segments":"1","num_media":"0","direction":"outbound-api",
                  "price":null,"price_unit":null,
                  "error_code":21609,"error_message":"SMS gateway not configured",
@@ -111,8 +111,8 @@ public class MessagesAndPaymentsTests
         var handler = new MockHandler(req =>
         {
             var url = req.RequestUri!.ToString();
-            Assert.Contains("To=%2B18005550000", url);
-            Assert.Contains("From=%2B18005551234", url);
+            Assert.Contains("To=%2B14155550101", url);
+            Assert.Contains("From=%2B14155550100", url);
             Assert.Contains("DateSent=2026-06-01", url);
             Assert.Contains("DateSent<", url);
             Assert.Contains("DateSent>", url);
@@ -122,8 +122,8 @@ public class MessagesAndPaymentsTests
         using var client = NewClient(handler);
         var list = await client.Messages.ListAsync(new ListMessagesParams
         {
-            To = "+18005550000",
-            From = "+18005551234",
+            To = "+14155550101",
+            From = "+14155550100",
             DateSent = "2026-06-01",
             DateSentLt = "2026-06-15",
             DateSentGt = "2026-05-01",
@@ -153,7 +153,7 @@ public class MessagesAndPaymentsTests
 
             return Reply(HttpStatusCode.OK, $$"""
                 {"sid":"{{MsgSid}}","account_sid":"{{Sid}}","api_version":"2010-04-01",
-                 "to":"+18005550000","from":"+18005551234","body":"",
+                 "to":"+14155550101","from":"+14155550100","body":"",
                  "status":"sent","num_segments":"1","num_media":"0","direction":"outbound-api",
                  "price":null,"price_unit":null,"error_code":null,"error_message":null,
                  "messaging_service_sid":null,
@@ -319,20 +319,20 @@ public class MessagesAndPaymentsTests
             {
                 return Reply(HttpStatusCode.OK, $$"""
                     {"messages":[
-                        {"sid":"SM01","account_sid":"{{Sid}}","api_version":"2010-04-01","to":"+18005550000","from":"+18005551234","body":"a","status":"sent","num_segments":"1","num_media":"0","direction":"outbound-api","date_created":"x","date_updated":"x","uri":"/x"},
-                        {"sid":"SM02","account_sid":"{{Sid}}","api_version":"2010-04-01","to":"+18005550000","from":"+18005551234","body":"b","status":"sent","num_segments":"1","num_media":"0","direction":"outbound-api","date_created":"x","date_updated":"x","uri":"/x"}
-                    ],"page":0,"page_size":2,"next_page_uri":"/2010-04-01/Accounts/{{Sid}}/Messages.json?Page=1&PageSize=2"}
+                        {"sid":"SM01","account_sid":"{{Sid}}","api_version":"2010-04-01","to":"+14155550101","from":"+14155550100","body":"a","status":"sent","num_segments":"1","num_media":"0","direction":"outbound-api","date_created":"x","date_updated":"x","uri":"/x"},
+                        {"sid":"SM02","account_sid":"{{Sid}}","api_version":"2010-04-01","to":"+14155550101","from":"+14155550100","body":"b","status":"sent","num_segments":"1","num_media":"0","direction":"outbound-api","date_created":"x","date_updated":"x","uri":"/x"}
+                    ],"page":0,"page_size":2,"next_page_uri":"/2010-04-01/Accounts/{{Sid}}/Messages.json?PageToken=PAnext&Page=1&PageSize=2"}
                     """);
             }
             return Reply(HttpStatusCode.OK, $$"""
                 {"messages":[
-                    {"sid":"SM03","account_sid":"{{Sid}}","api_version":"2010-04-01","to":"+18005550000","from":"+18005551234","body":"c","status":"sent","num_segments":"1","num_media":"0","direction":"outbound-api","date_created":"x","date_updated":"x","uri":"/x"}
+                    {"sid":"SM03","account_sid":"{{Sid}}","api_version":"2010-04-01","to":"+14155550101","from":"+14155550100","body":"c","status":"sent","num_segments":"1","num_media":"0","direction":"outbound-api","date_created":"x","date_updated":"x","uri":"/x"}
                 ],"page":1,"page_size":2,"next_page_uri":null}
                 """);
         });
         using var client = NewClient(handler);
         var collected = new List<Message>();
-        await foreach (var m in client.Messages.IterateAsync(pageSize: 2))
+        await foreach (var m in client.Messages.IterateAsync(new ListMessagesParams { PageSize = 2 }))
         {
             collected.Add(m);
         }

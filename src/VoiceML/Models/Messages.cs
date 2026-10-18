@@ -3,11 +3,8 @@ using System.Text.Json.Serialization;
 
 namespace VoiceML.Models;
 
-/// <summary>A Twilio-compatible Message resource — VoiceML's outbound SMS surface, backed by the
-/// SDK 2.2 gateway. Outbound-only today (no MMS, no inbound webhook delivery). On the wire,
-/// <c>num_segments</c> and <c>num_media</c> are string-typed (Twilio's documented shape).
-/// <see cref="Status"/> pins to <c>sent</c> on a successful dispatch and <c>failed</c> otherwise —
-/// the gateway is fire-and-forget, so there is no in-flight queued/sending/delivered lifecycle.</summary>
+/// <summary>A Twilio-compatible SMS or MMS message. The segment and media counts are
+/// string-encoded on the wire. Status is an open string, preserving future delivery states.</summary>
 public sealed record Message
 {
     /// <summary>Message SID (<c>SM</c> + 32 hex).</summary>
@@ -39,8 +36,7 @@ public sealed record Message
     /// (not an integer) — the SDK preserves that shape for strict-binding compatibility.</summary>
     [JsonPropertyName("num_segments")] public string NumSegments { get; init; } = "";
 
-    /// <summary>Media-attachment count. Always <c>"0"</c> today (no MMS support).
-    /// String-typed on the wire, like <see cref="NumSegments"/>.</summary>
+    /// <summary>Number of media attachments, string-encoded on the wire like <see cref="NumSegments"/>.</summary>
     [JsonPropertyName("num_media")] public string NumMedia { get; init; } = "";
 
     /// <summary>Message direction: <c>outbound-api</c>, <c>outbound-call</c>,
@@ -87,33 +83,70 @@ public sealed record MessageList : Page
     [JsonPropertyName("messages")] public List<Message> Messages { get; init; } = new();
 }
 
-/// <summary>Body for <c>POST /Messages</c>. <see cref="To"/> and <see cref="Body"/> are required;
-/// <see cref="From"/> falls back to the tenant's configured default sender when omitted.</summary>
+/// <summary>Body for <c>POST /Messages</c>. <see cref="To"/> is required. Supply either
+/// <see cref="Body"/> or at least one <see cref="MediaUrl"/> (which makes the message an
+/// MMS routed through the media gateway) — form serialization validates that one of the two is
+/// present. <see cref="From"/> falls back to the tenant's configured default sender when
+/// omitted.</summary>
 public sealed record CreateMessageRequest : IFormSerializable
 {
     /// <summary>Destination phone number (E.164).</summary>
     public required string To { get; init; }
 
-    /// <summary>Message text.</summary>
-    public required string Body { get; init; }
+    /// <summary>Message text. Required unless <see cref="MediaUrl"/> is supplied (MMS).</summary>
+    public string? Body { get; init; }
 
     /// <summary>Source phone number; falls back to the tenant's configured default sender.</summary>
     public string? From { get; init; }
 
+    /// <summary>One or more media URLs to attach — emitted as repeated <c>MediaUrl</c> form
+    /// keys. A non-empty list makes the message an MMS and makes <see cref="Body"/>
+    /// optional.</summary>
+    public List<string>? MediaUrl { get; init; }
+
     /// <summary>Messaging Service SID. Accepted for compatibility; not yet routed against.</summary>
     public string? MessagingServiceSid { get; init; }
 
-    /// <summary>Status-callback URL. Reserved — outbound SMS is fire-and-forget today.</summary>
+    /// <summary>Seconds the message may stay queued before failing with 30001 (queue
+    /// overflow).</summary>
+    public int? ValidityPeriod { get; init; }
+
+    /// <summary>Per-message delivery-receipt (DLR) callback URL; overrides the
+    /// Application-level default.</summary>
     public string? StatusCallback { get; init; }
+
+    /// <summary>HTTP method (<c>GET</c> or <c>POST</c>) for the <see cref="StatusCallback"/>
+    /// DLR request.</summary>
+    public string? StatusCallbackMethod { get; init; }
+
+    /// <summary>Validate that Body or MediaUrl is present. Called during form serialization.</summary>
+    public void Validate()
+    {
+        if (string.IsNullOrEmpty(Body) && (MediaUrl is null || MediaUrl.Count == 0))
+        {
+            throw new VoiceML.Exceptions.VoiceMLException(
+                "CreateMessageRequest requires either Body or at least one MediaUrl");
+        }
+    }
 
     /// <inheritdoc/>
     public IEnumerable<KeyValuePair<string, string?>> ToForm()
     {
+        Validate();
         yield return new("To", To);
         yield return new("Body", Body);
         yield return new("From", From);
+        if (MediaUrl is not null)
+        {
+            foreach (var url in MediaUrl)
+            {
+                yield return new("MediaUrl", url);
+            }
+        }
         yield return new("MessagingServiceSid", MessagingServiceSid);
+        yield return new("ValidityPeriod", ValidityPeriod?.ToString());
         yield return new("StatusCallback", StatusCallback);
+        yield return new("StatusCallbackMethod", StatusCallbackMethod);
     }
 }
 

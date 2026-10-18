@@ -7,13 +7,13 @@ namespace VoiceML.Models;
 public sealed record Queue
 {
     /// <summary>Queue SID (<c>QU</c> + 32 hex).</summary>
-    [JsonPropertyName("sid")] public string Sid { get; init; } = "";
+    [JsonPropertyName("sid")] public string? Sid { get; init; }
 
     /// <summary>Owning Account SID.</summary>
-    [JsonPropertyName("account_sid")] public string AccountSid { get; init; } = "";
+    [JsonPropertyName("account_sid")] public string? AccountSid { get; init; }
 
     /// <summary>Friendly name (unique per account).</summary>
-    [JsonPropertyName("friendly_name")] public string FriendlyName { get; init; } = "";
+    [JsonPropertyName("friendly_name")] public string? FriendlyName { get; init; }
 
     /// <summary>Current count of waiting members.</summary>
     [JsonPropertyName("current_size")] public int CurrentSize { get; init; }
@@ -25,13 +25,13 @@ public sealed record Queue
     [JsonPropertyName("average_wait_time")] public int AverageWaitTime { get; init; }
 
     /// <summary>RFC 3339 creation timestamp.</summary>
-    [JsonPropertyName("date_created")] public string DateCreated { get; init; } = "";
+    [JsonPropertyName("date_created")] public string? DateCreated { get; init; }
 
     /// <summary>RFC 3339 last-modification timestamp.</summary>
-    [JsonPropertyName("date_updated")] public string DateUpdated { get; init; } = "";
+    [JsonPropertyName("date_updated")] public string? DateUpdated { get; init; }
 
     /// <summary>URI of this queue.</summary>
-    [JsonPropertyName("uri")] public string Uri { get; init; } = "";
+    [JsonPropertyName("uri")] public string? Uri { get; init; }
 }
 
 /// <summary>List response for <c>GET /Queues</c>.</summary>
@@ -45,16 +45,16 @@ public sealed record QueueList : Page
 public sealed record QueueMember
 {
     /// <summary>SID of the enqueued call.</summary>
-    [JsonPropertyName("call_sid")] public string CallSid { get; init; } = "";
+    [JsonPropertyName("call_sid")] public string? CallSid { get; init; }
 
     /// <summary>Owning Queue SID.</summary>
-    [JsonPropertyName("queue_sid")] public string QueueSid { get; init; } = "";
+    [JsonPropertyName("queue_sid")] public string? QueueSid { get; init; }
 
-    /// <summary>Owning Account SID.</summary>
-    [JsonPropertyName("account_sid")] public string AccountSid { get; init; } = "";
+    /// <summary>Legacy field, no longer returned by the server; retained as nullable for older response payloads.</summary>
+    [JsonPropertyName("account_sid")] public string? AccountSid { get; init; }
 
     /// <summary>RFC 3339 timestamp the call was enqueued.</summary>
-    [JsonPropertyName("date_enqueued")] public string DateEnqueued { get; init; } = "";
+    [JsonPropertyName("date_enqueued")] public string? DateEnqueued { get; init; }
 
     /// <summary>Wait time in seconds at this moment.</summary>
     [JsonPropertyName("wait_time")] public int WaitTime { get; init; }
@@ -63,7 +63,7 @@ public sealed record QueueMember
     [JsonPropertyName("position")] public int Position { get; init; }
 
     /// <summary>URI of this queue-member resource.</summary>
-    [JsonPropertyName("uri")] public string Uri { get; init; } = "";
+    [JsonPropertyName("uri")] public string? Uri { get; init; }
 }
 
 /// <summary>List response for <c>GET /Queues/{sid}/Members</c>.</summary>

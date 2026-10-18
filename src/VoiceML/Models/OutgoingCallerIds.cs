@@ -9,10 +9,10 @@ namespace VoiceML.Models;
 public sealed record OutgoingCallerId
 {
     /// <summary>OutgoingCallerId SID (<c>PN</c> + 32 hex).</summary>
-    [JsonPropertyName("sid")] public string Sid { get; init; } = "";
+    [JsonPropertyName("sid")] public string? Sid { get; init; }
 
     /// <summary>Owning Account SID.</summary>
-    [JsonPropertyName("account_sid")] public string AccountSid { get; init; } = "";
+    [JsonPropertyName("account_sid")] public string? AccountSid { get; init; }
 
     /// <summary>Friendly name (free-form).</summary>
     [JsonPropertyName("friendly_name")] public string? FriendlyName { get; init; }
@@ -44,7 +44,7 @@ public sealed record OutgoingCallerIdList : Page
 public sealed record ValidationRequest
 {
     /// <summary>Owning Account SID.</summary>
-    [JsonPropertyName("account_sid")] public string AccountSid { get; init; } = "";
+    [JsonPropertyName("account_sid")] public string? AccountSid { get; init; }
 
     /// <summary>SID of the validation call that was dispatched.</summary>
     [JsonPropertyName("call_sid")] public string? CallSid { get; init; }
@@ -57,4 +57,66 @@ public sealed record ValidationRequest
 
     /// <summary>Verification code to read back to the caller.</summary>
     [JsonPropertyName("validation_code")] public string? ValidationCode { get; init; }
+}
+
+/// <summary>Query-string params for <c>GET /OutgoingCallerIds</c>.</summary>
+public sealed record ListOutgoingCallerIdsParams
+{
+    /// <summary>Filter on the whole number, in E.164 without the <c>+</c>, or as the national
+    /// ten digits of a +1 number.</summary>
+    public string? PhoneNumber { get; init; }
+
+    /// <summary>Filter on the whole friendly name, matched case-insensitively.</summary>
+    public string? FriendlyName { get; init; }
+
+    /// <summary>Zero-based page index.</summary>
+    public int? Page { get; init; }
+
+    /// <summary>Page size. Max 1000; default 50.</summary>
+    public int? PageSize { get; init; }
+
+    /// <summary>Opaque cursor for the next page, provided by the API.</summary>
+    public string? PageToken { get; init; }
+
+    /// <summary>Render as a query-parameter sequence.</summary>
+    public IEnumerable<KeyValuePair<string, string?>> ToQuery()
+    {
+        yield return new("PhoneNumber", PhoneNumber);
+        yield return new("FriendlyName", FriendlyName);
+        yield return new("Page", Page?.ToString());
+        yield return new("PageSize", PageSize?.ToString());
+        yield return new("PageToken", PageToken);
+    }
+}
+
+/// <summary>Body for <c>POST /OutgoingCallerIds</c> — start caller-ID verification. The
+/// server dials the number and reads out a validation code; the response identifies the
+/// validation call.</summary>
+public sealed record CreateOutgoingCallerIdRequest : IFormSerializable
+{
+    /// <summary>The phone number to verify, in E.164 (with the leading <c>+</c>).</summary>
+    public required string PhoneNumber { get; init; }
+
+    /// <summary>Friendly name to store for the verified number.</summary>
+    public string? FriendlyName { get; init; }
+
+    /// <inheritdoc/>
+    public IEnumerable<KeyValuePair<string, string?>> ToForm()
+    {
+        yield return new("PhoneNumber", PhoneNumber);
+        yield return new("FriendlyName", FriendlyName);
+    }
+}
+
+/// <summary>Body for <c>POST /OutgoingCallerIds/{Sid}</c> — rename a verified caller ID.</summary>
+public sealed record UpdateOutgoingCallerIdRequest : IFormSerializable
+{
+    /// <summary>New friendly name.</summary>
+    public string? FriendlyName { get; init; }
+
+    /// <inheritdoc/>
+    public IEnumerable<KeyValuePair<string, string?>> ToForm()
+    {
+        yield return new("FriendlyName", FriendlyName);
+    }
 }

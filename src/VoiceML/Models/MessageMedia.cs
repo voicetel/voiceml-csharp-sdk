@@ -40,3 +40,36 @@ public sealed record MediaList : Page
     /// <summary>The page of Media resources. Wire name: <c>media_list</c>.</summary>
     [JsonPropertyName("media_list")] public List<Media> Items { get; init; } = new();
 }
+
+/// <summary>Query-string params for <c>GET /Messages/{sid}/Media</c>.</summary>
+public sealed record ListMediaParams
+{
+    /// <summary>Filter to media created on this UTC date (<c>YYYY-MM-DD</c>).</summary>
+    public string? DateCreated { get; init; }
+
+    /// <summary>Media created strictly before this UTC date/time. Wire name: <c>DateCreated&lt;</c>.</summary>
+    public string? DateCreatedLt { get; init; }
+
+    /// <summary>Media created strictly after this UTC date/time. Wire name: <c>DateCreated&gt;</c>.</summary>
+    public string? DateCreatedGt { get; init; }
+
+    /// <summary>Zero-based page index.</summary>
+    public int? Page { get; init; }
+
+    /// <summary>Page size.</summary>
+    public int? PageSize { get; init; }
+
+    /// <summary>Opaque cursor for the next page, provided by the API.</summary>
+    public string? PageToken { get; init; }
+
+    /// <summary>Render as a query-parameter sequence.</summary>
+    public IEnumerable<KeyValuePair<string, string?>> ToQuery()
+    {
+        yield return new("DateCreated", DateCreated);
+        yield return new("DateCreated<", DateCreatedLt);
+        yield return new("DateCreated>", DateCreatedGt);
+        yield return new("Page", Page?.ToString());
+        yield return new("PageSize", PageSize?.ToString());
+        yield return new("PageToken", PageToken);
+    }
+}

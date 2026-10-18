@@ -7,13 +7,13 @@ namespace VoiceML.Models;
 public sealed record Call
 {
     /// <summary>Twilio-format Call SID (<c>CA</c> + 32 hex).</summary>
-    [JsonPropertyName("sid")] public string Sid { get; init; } = "";
+    [JsonPropertyName("sid")] public string? Sid { get; init; }
 
     /// <summary>Account SID that owns this call.</summary>
-    [JsonPropertyName("account_sid")] public string AccountSid { get; init; } = "";
+    [JsonPropertyName("account_sid")] public string? AccountSid { get; init; }
 
     /// <summary>Twilio API version label (always <c>2010-04-01</c> for this surface).</summary>
-    [JsonPropertyName("api_version")] public string ApiVersion { get; init; } = "";
+    [JsonPropertyName("api_version")] public string? ApiVersion { get; init; }
 
     /// <summary>Destination phone number, E.164 (or SIP URI).</summary>
     [JsonPropertyName("to")] public string? To { get; init; }
@@ -42,7 +42,7 @@ public sealed record Call
     [JsonPropertyName("status")] public string Status { get; init; } = "";
 
     /// <summary>Call direction: <c>inbound</c>, <c>outbound-api</c>, or <c>outbound-dial</c>.</summary>
-    [JsonPropertyName("direction")] public string Direction { get; init; } = "";
+    [JsonPropertyName("direction")] public string? Direction { get; init; }
 
     /// <summary>AMD verdict (Twilio-strict enum: <c>human</c>, <c>machine_start</c>, <c>machine_end_*</c>,
     /// <c>fax</c>, <c>unknown</c>, or empty string).</summary>
@@ -79,13 +79,13 @@ public sealed record Call
     [JsonPropertyName("trunk_sid")] public string? TrunkSid { get; init; }
 
     /// <summary>RFC 3339 creation timestamp.</summary>
-    [JsonPropertyName("date_created")] public string DateCreated { get; init; } = "";
+    [JsonPropertyName("date_created")] public string? DateCreated { get; init; }
 
     /// <summary>RFC 3339 last-modification timestamp.</summary>
-    [JsonPropertyName("date_updated")] public string DateUpdated { get; init; } = "";
+    [JsonPropertyName("date_updated")] public string? DateUpdated { get; init; }
 
     /// <summary>URI of this Call resource.</summary>
-    [JsonPropertyName("uri")] public string Uri { get; init; } = "";
+    [JsonPropertyName("uri")] public string? Uri { get; init; }
 
     /// <summary>Map of subresource name → URI (recordings, streams, transcriptions...).</summary>
     [JsonPropertyName("subresource_uris")] public Dictionary<string, string>? SubresourceUris { get; init; }
@@ -308,9 +308,9 @@ public sealed record UpdateCallRequest : IFormSerializable
     }
 }
 
-/// <summary>Query-string params for <c>GET /Calls</c>. Twilio uses the literal query-name
-/// <c>StartTime&gt;=</c> / <c>StartTime&lt;=</c>; the SDK keeps them verbatim on the wire,
-/// modelled here as <see cref="StartTimeGte"/> / <see cref="StartTimeLte"/>.</summary>
+/// <summary>Query-string params for <c>GET /Calls</c>. The comparison filters use the literal
+/// query-names <c>StartTime&lt;</c> / <c>StartTime&gt;</c> (and the <c>EndTime</c> equivalents),
+/// sent percent-encoded; the API defines no <c>&lt;=</c> / <c>&gt;=</c> variants.</summary>
 public sealed record ListCallsParams
 {
     /// <summary>Filter by destination number.</summary>
@@ -333,12 +333,6 @@ public sealed record ListCallsParams
 
     /// <summary>Calls started strictly after this UTC date/time. Wire name: <c>StartTime&gt;</c>.</summary>
     public string? StartTimeGt { get; init; }
-
-    /// <summary>Earliest start_time (inclusive). Serialized as <c>StartTime&gt;=</c>.</summary>
-    public string? StartTimeGte { get; init; }
-
-    /// <summary>Latest start_time (inclusive). Serialized as <c>StartTime&lt;=</c>.</summary>
-    public string? StartTimeLte { get; init; }
 
     /// <summary>Calls ended on this UTC date (<c>YYYY-MM-DD</c>). Wire name: <c>EndTime</c>.</summary>
     public string? EndTime { get; init; }
@@ -368,9 +362,6 @@ public sealed record ListCallsParams
         yield return new("StartTime", StartTime);
         yield return new("StartTime<", StartTimeLt);
         yield return new("StartTime>", StartTimeGt);
-        // Note: literal Twilio query-name with `>=` / `<=`.
-        yield return new("StartTime>=", StartTimeGte);
-        yield return new("StartTime<=", StartTimeLte);
         yield return new("EndTime", EndTime);
         yield return new("EndTime<", EndTimeLt);
         yield return new("EndTime>", EndTimeGt);
@@ -438,41 +429,29 @@ public sealed record ListNotificationsParams
     }
 }
 
-/// <summary>List response for <c>GET /Calls/{sid}/Notifications</c> — always empty (compat stub).</summary>
-public sealed record NotificationsList
+/// <summary>List response for <c>GET /Calls/{sid}/Notifications</c> — always empty (compat
+/// stub), with the standard pagination envelope.</summary>
+public sealed record NotificationsList : Page
 {
     /// <summary>The notifications (always empty).</summary>
-    [JsonPropertyName("notifications")] public List<object> Notifications { get; init; } = new();
+    [JsonPropertyName("notifications")] public List<Notification> Notifications { get; init; } = new();
+}
 
-    /// <summary>Zero-based page index.</summary>
-    [JsonPropertyName("page")] public int Page { get; init; }
+/// <summary>A call event: the request the call engine made and the response it received.
+/// Raw JSON objects — the API does not constrain their internal shape.</summary>
+public sealed record CallEvent
+{
+    /// <summary>The request side of the event, as a raw JSON object.</summary>
+    [JsonPropertyName("request")] public System.Text.Json.JsonElement? Request { get; init; }
 
-    /// <summary>Page size.</summary>
-    [JsonPropertyName("page_size")] public int PageSize { get; init; }
-
-    /// <summary>Total items.</summary>
-    [JsonPropertyName("total")] public int Total { get; init; }
-
-    /// <summary>URI of this collection.</summary>
-    [JsonPropertyName("uri")] public string? Uri { get; init; }
+    /// <summary>The response side of the event, as a raw JSON object.</summary>
+    [JsonPropertyName("response")] public System.Text.Json.JsonElement? Response { get; init; }
 }
 
 /// <summary>List response for <c>GET /Calls/{sid}/Events</c> — always empty (compat stub).
 /// The canonical event source is the customer's StatusCallback URL.</summary>
-public sealed record EventsList
+public sealed record EventsList : Page
 {
     /// <summary>The events (always empty).</summary>
-    [JsonPropertyName("events")] public List<object> Events { get; init; } = new();
-
-    /// <summary>Zero-based page index.</summary>
-    [JsonPropertyName("page")] public int Page { get; init; }
-
-    /// <summary>Page size.</summary>
-    [JsonPropertyName("page_size")] public int PageSize { get; init; }
-
-    /// <summary>Total items.</summary>
-    [JsonPropertyName("total")] public int Total { get; init; }
-
-    /// <summary>URI of this collection.</summary>
-    [JsonPropertyName("uri")] public string? Uri { get; init; }
+    [JsonPropertyName("events")] public List<CallEvent> Events { get; init; } = new();
 }

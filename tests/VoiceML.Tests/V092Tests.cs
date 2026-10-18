@@ -197,26 +197,26 @@ public class V092Tests
                     "\"number_type\":\"local\"}],\"price_unit\":\"USD\"," +
                     "\"url\":\"" + Base + "/v1/Voice/Countries/US\"}");
             }
-            // /v1/Voice/Numbers/%2B18005551234
+            // /v1/Voice/Numbers/%2B14155550100
             return Reply(HttpStatusCode.OK,
-                "{\"number\":\"+18005551234\",\"country\":\"United States\",\"iso_country\":\"US\"," +
+                "{\"number\":\"+14155550100\",\"country\":\"United States\",\"iso_country\":\"US\"," +
                 "\"outbound_call_price\":{\"base_price\":\"0.013\",\"current_price\":\"0.013\"}," +
                 "\"inbound_call_price\":{\"base_price\":\"0.0085\",\"current_price\":\"0.0085\"," +
                 "\"number_type\":\"toll free\"},\"price_unit\":\"USD\"," +
-                "\"url\":\"" + Base + "/v1/Voice/Numbers/+18005551234\"}");
+                "\"url\":\"" + Base + "/v1/Voice/Numbers/+14155550100\"}");
         });
         using var client = NewClient(handler);
 
         var listed = await client.Pricing.V1.Voice.Countries.ListAsync();
         var fetched = await client.Pricing.V1.Voice.Countries.FetchAsync("US");
-        var num = await client.Pricing.V1.Voice.Numbers.FetchAsync("+18005551234");
+        var num = await client.Pricing.V1.Voice.Numbers.FetchAsync("+14155550100");
 
         Assert.Equal("US", listed.Countries[0].IsoCountry);
         Assert.Equal(new[] { "1" }, fetched.OutboundPrefixPrices[0].Prefixes);
         Assert.Equal("toll free", num.InboundCallPrice!.NumberType);
         Assert.All(requests, u => Assert.Equal("voiceml.voicetel.com", u.Host));
         // E.164 `+` must be percent-encoded in the number path segment.
-        Assert.Equal("/v1/Voice/Numbers/%2B18005551234", requests[2].AbsolutePath);
+        Assert.Equal("/v1/Voice/Numbers/%2B14155550100", requests[2].AbsolutePath);
     }
 
     [Fact]
@@ -227,20 +227,20 @@ public class V092Tests
         {
             captured = req.RequestUri;
             return Reply(HttpStatusCode.OK,
-                "{\"destination_number\":\"+18005551234\",\"origination_number\":\"+15551112222\"," +
+                "{\"destination_number\":\"+14155550100\",\"origination_number\":\"+15551112222\"," +
                 "\"country\":\"United States\",\"iso_country\":\"US\"," +
                 "\"outbound_call_prices\":[{\"origination_prefixes\":[\"1\"],\"base_price\":\"0.013\"," +
                 "\"current_price\":\"0.013\"}]," +
                 "\"inbound_call_price\":{\"base_price\":\"0.0085\",\"current_price\":\"0.0085\"," +
                 "\"number_type\":\"local\"},\"price_unit\":\"USD\"," +
-                "\"url\":\"" + Base + "/v2/Voice/Numbers/+18005551234\"}");
+                "\"url\":\"" + Base + "/v2/Voice/Numbers/+14155550100\"}");
         });
         using var client = NewClient(handler);
 
-        var got = await client.Pricing.V2.Voice.Numbers.FetchAsync("+18005551234", "+15551112222");
+        var got = await client.Pricing.V2.Voice.Numbers.FetchAsync("+14155550100", "+15551112222");
         Assert.Equal("+15551112222", got.OriginationNumber);
         Assert.NotNull(captured);
-        Assert.Equal("/v2/Voice/Numbers/%2B18005551234", captured!.AbsolutePath);
+        Assert.Equal("/v2/Voice/Numbers/%2B14155550100", captured!.AbsolutePath);
         Assert.Contains("OriginationNumber=%2B15551112222", captured.Query);
         Assert.Equal("voiceml.voicetel.com", captured.Host);
     }

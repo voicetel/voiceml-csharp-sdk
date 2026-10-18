@@ -390,13 +390,13 @@ public class V090Phase4Tests
                 $"https://conversations.voicetel.com/v1/Services/{ChatSvcSid}/ParticipantConversations",
                 req.RequestUri!.ToString());
             Assert.Contains("Identity=alice", req.RequestUri.ToString());
-            Assert.Contains("Address=%2B15551234567", req.RequestUri.ToString());
+            Assert.Contains("Address=%2B14155550103", req.RequestUri.ToString());
             return Reply(HttpStatusCode.OK,
                 "{\"conversations\":[], \"meta\":{\"page\":0,\"page_size\":50,\"key\":\"conversations\"}}");
         });
         using var client = NewClient(handler);
         var list = await client.ConversationsV1.Services.Scope(ChatSvcSid).ParticipantConversations.ListAsync(
-            new ListServiceParticipantConversationsParams { Identity = "alice", Address = "+15551234567" });
+            new ListServiceParticipantConversationsParams { Identity = "alice", Address = "+14155550103" });
         Assert.Empty(list.Conversations);
     }
 

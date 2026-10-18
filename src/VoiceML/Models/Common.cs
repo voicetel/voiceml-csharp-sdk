@@ -3,8 +3,10 @@ using System.Text.Json.Serialization;
 
 namespace VoiceML.Models;
 
-/// <summary>Twilio-compatible pagination envelope. Concrete list types
-/// (e.g. <see cref="CallList"/>) inherit from this and add their typed item collection.</summary>
+/// <summary>Twilio-compatible pagination envelope for the <c>2010-04-01</c> list endpoints.
+/// Concrete list types (e.g. <see cref="CallList"/>) inherit from this and add their typed
+/// item collection. Page traversal follows <see cref="NextPageUri"/> verbatim — never
+/// synthesises a <c>Page=N</c> counter — and stops when it is <c>null</c> or empty.</summary>
 public abstract record Page
 {
     /// <summary>Zero-based page index of this response. Wire name: <c>page</c>.</summary>
@@ -12,12 +14,6 @@ public abstract record Page
 
     /// <summary>Page size (count of items requested).</summary>
     [JsonPropertyName("page_size")] public int PageSize { get; init; } = 50;
-
-    /// <summary>Total number of pages (when the server reports it; else <c>null</c>).</summary>
-    [JsonPropertyName("num_pages")] public int? NumPages { get; init; }
-
-    /// <summary>Total number of items across all pages (when reported).</summary>
-    [JsonPropertyName("total")] public int? Total { get; init; }
 
     /// <summary>Absolute index of the first item in this page.</summary>
     [JsonPropertyName("start")] public int? Start { get; init; }
@@ -28,7 +24,9 @@ public abstract record Page
     /// <summary>URI to fetch the first page.</summary>
     [JsonPropertyName("first_page_uri")] public string? FirstPageUri { get; init; }
 
-    /// <summary>URI to fetch the next page; <c>null</c> when this is the last page.</summary>
+    /// <summary>URI to fetch the next page; <c>null</c> or empty when this is the last page.
+    /// Relative (path + query) — resolve against the scheme and host of the request that
+    /// produced this page.</summary>
     [JsonPropertyName("next_page_uri")] public string? NextPageUri { get; init; }
 
     /// <summary>URI to fetch the previous page; <c>null</c> when this is the first page.</summary>
@@ -38,21 +36,15 @@ public abstract record Page
     [JsonPropertyName("uri")] public string? Uri { get; init; }
 }
 
-/// <summary>Twilio-compatible error body. The transport raises a <see cref="VoiceML.Exceptions.ApiException"/>
-/// (or subclass) with this payload attached on <c>Body</c>.</summary>
-public sealed record ErrorBody
+/// <summary>Implemented by every <c>/v1</c> list envelope (Conversations, Assistants, Voice v1,
+/// Pricing, Messaging Service). <c>/v1</c> lists page through the absolute
+/// <see cref="VoiceV1Meta.NextPageUrl"/> carried in the <c>meta</c> object; the SDK only
+/// follows it when its scheme and host match the configured product host.</summary>
+public interface IV1PagedList
 {
-    /// <summary>Numeric Twilio-style error code (e.g. 21211).</summary>
-    [JsonPropertyName("code")] public int? Code { get; init; }
-
-    /// <summary>Human-readable error message.</summary>
-    [JsonPropertyName("message")] public string? Message { get; init; }
-
-    /// <summary>Documentation URL with more detail on this error class.</summary>
-    [JsonPropertyName("more_info")] public string? MoreInfo { get; init; }
-
-    /// <summary>HTTP status code, repeated in the body for clients that parse only JSON.</summary>
-    [JsonPropertyName("status")] public int? Status { get; init; }
+    /// <summary>The <c>meta</c> envelope, carrying <see cref="VoiceV1Meta.NextPageUrl"/> and
+    /// <see cref="VoiceV1Meta.Key"/>.</summary>
+    VoiceV1Meta? Meta { get; }
 }
 
 /// <summary>One tripped check from the <c>/health</c> deep probe.</summary>
@@ -71,9 +63,11 @@ public sealed record HealthStatus
     /// <summary><c>true</c> when all hard checks pass.</summary>
     [JsonPropertyName("ok")] public bool Ok { get; init; }
 
-    /// <summary>Soft-check warnings — these do NOT flip <see cref="Ok"/>.</summary>
-    [JsonPropertyName("warnings")] public List<HealthFailure> Warnings { get; init; } = new();
+    /// <summary>Soft-check warnings — these do NOT flip <see cref="Ok"/>. Optional: absent
+    /// when the server reports a bare <c>{"ok":true}</c>.</summary>
+    [JsonPropertyName("warnings")] public List<HealthFailure>? Warnings { get; init; }
 
-    /// <summary>Hard-check failures — at least one of these flips <see cref="Ok"/> to <c>false</c>.</summary>
-    [JsonPropertyName("failures")] public List<HealthFailure> Failures { get; init; } = new();
+    /// <summary>Hard-check failures — at least one of these flips <see cref="Ok"/> to
+    /// <c>false</c>. Optional on the wire.</summary>
+    [JsonPropertyName("failures")] public List<HealthFailure>? Failures { get; init; }
 }

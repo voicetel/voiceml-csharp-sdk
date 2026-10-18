@@ -15,8 +15,7 @@ namespace VoiceML.Resources;
 /// </summary>
 public sealed class RecordingsResource : ResourceBase
 {
-    /// <summary>Construct with the shared transport.</summary>
-    public RecordingsResource(Transport transport) : base(transport) { }
+    internal RecordingsResource(Transport transport) : base(transport) { }
 
     /// <summary>List recordings across the entire account.</summary>
     public async Task<RecordingList> ListAsync(ListRecordingsParams? filter = null, CancellationToken ct = default)
@@ -34,23 +33,28 @@ public sealed class RecordingsResource : ResourceBase
     /// <see cref="Recording"/> at a time.</summary>
     public async IAsyncEnumerable<Recording> IterateAsync(
         ListRecordingsParams? filter = null,
-        int page = 0,
-        int? pageSize = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var p = filter ?? new ListRecordingsParams();
+        var page = await ListAsync(filter, ct).ConfigureAwait(false);
         while (true)
         {
-            var chunk = await ListAsync(
-                p with { Page = page, PageSize = pageSize ?? p.PageSize },
-                ct).ConfigureAwait(false);
-            foreach (var item in chunk.Recordings) yield return item;
-            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.Recordings.Count == 0) yield break;
-            page++;
+            foreach (var item in page.Recordings) yield return item;
+            if (string.IsNullOrEmpty(page.NextPageUri)) yield break;
+            page = await Transport.SendPageUriAsync<RecordingList>(page.NextPageUri!, ct).ConfigureAwait(false)
+                ?? throw new VoiceMLException("empty page while following next_page_uri");
         }
     }
 
     /// <summary>Fetch the metadata JSON for a recording.</summary>
+    /// <summary>Fetch the page a list response links to next, following its
+    /// <see cref="Page.NextPageUri"/> verbatim. Returns <c>null</c> when the page is the last
+    /// one.</summary>
+    public Task<RecordingList?> NextPageAsync(RecordingList page, CancellationToken ct = default)
+        => string.IsNullOrEmpty(page.NextPageUri)
+            ? Task.FromResult<RecordingList?>(null)
+            : Transport.SendPageUriAsync<RecordingList>(page.NextPageUri!, ct);
+
+    /// <summary>Fetch recordings. Route: Recordings, recordingSid.</summary>
     public async Task<Recording> GetAsync(
         string recordingSid, GetRecordingParams? filter = null, CancellationToken ct = default)
     {
@@ -69,16 +73,13 @@ public sealed class RecordingsResource : ResourceBase
     /// </list></summary>
     public async Task<RecordingAudio> GetAudioAsync(string recordingSid, CancellationToken ct = default)
     {
-        var (status, bytes, responseHeaders, contentHeaders) = await Transport.FetchBytesAsync(
-            PathNoSuffix("Recordings", recordingSid) + ".wav", ct).ConfigureAwait(false);
+        var (_, bytes, _, contentHeaders, viaRedirect) = await Transport.FetchBytesAsync(
+            PathNoSuffix("Recordings", recordingSid) + ".wav", sendAuth: true, ct: ct).ConfigureAwait(false);
         var contentType = "application/octet-stream";
         if (contentHeaders.ContentType is { } ct2)
         {
             contentType = ct2.MediaType ?? contentType;
         }
-        // S3-served content reliably has the x-amz-id-2 header; use that as the "we followed a
-        // redirect" tell. (HttpClient swallows the original 302, so we can't observe it directly.)
-        bool viaRedirect = status == 200 && responseHeaders.Contains("x-amz-id-2");
         return new RecordingAudio
         {
             Sid = recordingSid,
@@ -87,6 +88,11 @@ public sealed class RecordingsResource : ResourceBase
             ViaRedirect = viaRedirect,
         };
     }
+
+    /// <summary>Scope to a recording's <c>/Transcriptions</c> sub-resource — the offline
+    /// transcripts derived from the completed recording.</summary>
+    public RecordingTranscriptionsResource Transcriptions(string recordingSid)
+        => new(Transport, recordingSid);
 
     /// <summary>Delete a recording.</summary>
     public Task DeleteAsync(string recordingSid, CancellationToken ct = default)

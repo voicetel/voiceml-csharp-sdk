@@ -1,45 +1,26 @@
 # Security Policy
 
-## Supported Versions
+## Supported versions
 
 | Version | Supported |
-| ------- | --------- |
-| 0.7.x   | ✅        |
-| < 0.7   | ❌        |
+|---|---|
+| 0.9.x | Yes |
+| Earlier versions | No |
 
-## Reporting a Vulnerability
+## Reporting a vulnerability
 
-Please **do not** open a public issue for security vulnerabilities.
+Please use [GitHub private vulnerability reporting](https://github.com/voicetel/voiceml-csharp-sdk/security/advisories/new), rather than a public issue. Include affected versions/configuration, impact and reproduction steps. We aim to acknowledge reports within a few business days; allow reasonable time to prepare a fix before disclosure.
 
-Use GitHub's private vulnerability reporting for this repository:
-**Security → Report a vulnerability** (or
-<https://github.com/voicetel/voiceml-csharp-sdk/security/advisories/new>).
+## Credentials and transport
 
-Include, where possible:
+- Authenticate with a VoiceML AccountSid and VoiceML API key. `AuthToken` aliases the key; Twilio-issued credentials do not work with VoiceML.
+- Options redact API keys in default string output and omit them from JSON serialization. Keep credentials and Authorization headers out of application logs and source control; use an environment variable or secret manager.
+- Validate callback `X-Twilio-Signature` values with `RequestValidator.ValidateRequest`, using the account API key and the externally visible URL.
+- Reuse clients. SDK-owned handlers use platform TLS validation, five-minute pooled connection lifetimes and manual redirects. Custom `HttpClient` handlers should retain platform certificate validation and set `AllowAutoRedirect = false` so the SDK can inspect each redirect.
+- Recording audio and archive downloads strip authentication across host/scheme/port changes and reject HTTPS-to-HTTP redirects. Pagination links are restricted to the configured product origin.
+- GET/HEAD/PUT/DELETE retry 429, 500, 502, 503, 504 and transport failures. POST/PATCH retry only 429 and provable connection-establishment failures; they never retry 5xx, read timeouts or connection resets. Caller cancellation is never retried. The default is two retries.
+- Retry-After supports seconds and HTTP dates. Values above 60 seconds raise the error immediately with the parsed duration exposed. Other retries use full-jitter exponential backoff (0.5 seconds base, 8 seconds ceiling).
 
-- A description of the issue and its impact
-- Steps to reproduce or a proof of concept
-- Affected version(s) and configuration
+## Package availability
 
-You can expect an acknowledgement within a few business days. Please
-allow reasonable time for a fix before any public disclosure.
-
-## Scope Notes
-
-This SDK constructs authenticated HTTP requests to the VoiceML REST
-API. Hardening expectations on the consumer side:
-
-- Do not log `ClientOptions.ApiKey` / `AuthToken` or the
-  `Authorization` header — both carry the per-tenant secret in HTTP
-  Basic form.
-- Keep `AccountSid` + secret out of source control; load from a
-  secret manager or environment.
-- The SDK uses `System.Net.Http.HttpClient` with the .NET 8 default
-  TLS posture (TLS 1.2+ via SChannel / OpenSSL). If you supply a
-  custom `HttpClient`, you are responsible for matching that posture.
-- Retries on 429 / 5xx replay the same request body. Do not pass
-  non-idempotent payloads through clients with retries enabled
-  unless the server enforces an idempotency key.
-
-Out of scope: vulnerabilities in the published `VoiceML` NuGet
-package caused by a forked / vendored copy that has been modified.
+`VoiceML` has not yet been published to nuget.org. Build from this repository using the [local-feed or ProjectReference instructions](docs/installation.md). The first registry publication and trusted-publishing account configuration require repository-owner action.

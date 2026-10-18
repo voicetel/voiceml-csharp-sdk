@@ -11,8 +11,7 @@ namespace VoiceML.Resources;
 /// <summary>Operations on <c>/Applications</c>.</summary>
 public sealed class ApplicationsResource : ResourceBase
 {
-    /// <summary>Construct with the shared transport.</summary>
-    public ApplicationsResource(Transport transport) : base(transport) { }
+    internal ApplicationsResource(Transport transport) : base(transport) { }
 
     /// <summary>Create an application bundle.</summary>
     public async Task<Application> CreateAsync(CreateApplicationRequest request, CancellationToken ct = default)
@@ -38,21 +37,25 @@ public sealed class ApplicationsResource : ResourceBase
     /// <see cref="Application"/> at a time.</summary>
     public async IAsyncEnumerable<Application> IterateAsync(
         ListApplicationsParams? filter = null,
-        int page = 0,
-        int? pageSize = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var p = filter ?? new ListApplicationsParams();
+        var page = await ListAsync(filter, ct).ConfigureAwait(false);
         while (true)
         {
-            var chunk = await ListAsync(
-                p with { Page = page, PageSize = pageSize ?? p.PageSize },
-                ct).ConfigureAwait(false);
-            foreach (var item in chunk.Applications) yield return item;
-            if (string.IsNullOrEmpty(chunk.NextPageUri) || chunk.Applications.Count == 0) yield break;
-            page++;
+            foreach (var item in page.Applications) yield return item;
+            if (string.IsNullOrEmpty(page.NextPageUri)) yield break;
+            page = await Transport.SendPageUriAsync<ApplicationList>(page.NextPageUri!, ct).ConfigureAwait(false)
+                ?? throw new VoiceMLException("empty page while following next_page_uri");
         }
     }
+
+    /// <summary>Fetch the page a list response links to next, following its
+    /// <see cref="Page.NextPageUri"/> verbatim. Returns <c>null</c> when the page is the last
+    /// one.</summary>
+    public Task<ApplicationList?> NextPageAsync(ApplicationList page, CancellationToken ct = default)
+        => string.IsNullOrEmpty(page.NextPageUri)
+            ? Task.FromResult<ApplicationList?>(null)
+            : Transport.SendPageUriAsync<ApplicationList>(page.NextPageUri!, ct);
 
     /// <summary>Fetch an application by SID.</summary>
     public async Task<Application> GetAsync(string applicationSid, CancellationToken ct = default)

@@ -4,6 +4,6 @@ namespace VoiceML.Exceptions;
 public sealed class NotImplementedAPIException : ApiException
 {
     /// <summary>Construct with structured fields.</summary>
-    public NotImplementedAPIException(string message, int statusCode, object? code = null, object? body = null, string? moreInfo = null)
-        : base(message, statusCode, code, body, moreInfo) { }
+    public NotImplementedAPIException(string message, int statusCode, int? code = null, object? body = null, string? moreInfo = null, string? codeRaw = null, int? status = null)
+        : base(message, statusCode, code, body, moreInfo, codeRaw, status) { }
 }

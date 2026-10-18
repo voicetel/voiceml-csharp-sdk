@@ -7,25 +7,25 @@ namespace VoiceML.Models;
 public sealed record Conference
 {
     /// <summary>Conference SID (<c>CF</c> + 32 hex).</summary>
-    [JsonPropertyName("sid")] public string Sid { get; init; } = "";
+    [JsonPropertyName("sid")] public string? Sid { get; init; }
 
     /// <summary>Owning Account SID.</summary>
-    [JsonPropertyName("account_sid")] public string AccountSid { get; init; } = "";
+    [JsonPropertyName("account_sid")] public string? AccountSid { get; init; }
 
     /// <summary>Friendly name set by the customer (or auto-generated).</summary>
-    [JsonPropertyName("friendly_name")] public string FriendlyName { get; init; } = "";
+    [JsonPropertyName("friendly_name")] public string? FriendlyName { get; init; }
 
-    /// <summary>Current status: <c>init</c>, <c>in-progress</c>, or <c>completed</c>. Server-side, VoiceML emits only <c>in-progress</c>/<c>completed</c>; <c>init</c> is documented in the spec for Twilio enum-deserializer parity.</summary>
+    /// <summary>Current status: init, in-progress or completed. Future values remain available as strings; VoiceML currently emits in-progress or completed.</summary>
     [JsonPropertyName("status")] public string Status { get; init; } = "";
 
     /// <summary>Conference region.</summary>
     [JsonPropertyName("region")] public string? Region { get; init; }
 
     /// <summary>Twilio API version label.</summary>
-    [JsonPropertyName("api_version")] public string ApiVersion { get; init; } = "";
+    [JsonPropertyName("api_version")] public string? ApiVersion { get; init; }
 
     /// <summary>URI of this conference.</summary>
-    [JsonPropertyName("uri")] public string Uri { get; init; } = "";
+    [JsonPropertyName("uri")] public string? Uri { get; init; }
 
     /// <summary>RFC 3339 creation timestamp.</summary>
     [JsonPropertyName("date_created")] public string? DateCreated { get; init; }
@@ -57,35 +57,35 @@ public sealed record ConferenceList : Page
 public sealed record Participant
 {
     /// <summary>The call SID joined into the conference.</summary>
-    [JsonPropertyName("call_sid")] public string CallSid { get; init; } = "";
+    [JsonPropertyName("call_sid")] public string? CallSid { get; init; }
 
     /// <summary>The conference SID this participant is part of.</summary>
-    [JsonPropertyName("conference_sid")] public string ConferenceSid { get; init; } = "";
+    [JsonPropertyName("conference_sid")] public string? ConferenceSid { get; init; }
 
     /// <summary>Owning Account SID.</summary>
-    [JsonPropertyName("account_sid")] public string AccountSid { get; init; } = "";
+    [JsonPropertyName("account_sid")] public string? AccountSid { get; init; }
 
     /// <summary>Whether the participant's audio is muted.</summary>
-    [JsonPropertyName("muted")] public bool Muted { get; init; }
+    [JsonPropertyName("muted")] public bool? Muted { get; init; }
 
     /// <summary>Whether the participant is on hold.</summary>
-    [JsonPropertyName("hold")] public bool Hold { get; init; }
+    [JsonPropertyName("hold")] public bool? Hold { get; init; }
 
     /// <summary>When <see cref="Coaching"/> is true, the CallSid of the participant this coach
     /// can speak to (Twilio whisper-coach). Empty when not coaching.</summary>
     [JsonPropertyName("call_sid_to_coach")] public string? CallSidToCoach { get; init; }
 
     /// <summary>True when this participant joined with the coach role (Twilio whisper-coach).</summary>
-    [JsonPropertyName("coaching")] public bool Coaching { get; init; }
+    [JsonPropertyName("coaching")] public bool? Coaching { get; init; }
 
     /// <summary>Pre-join queue-wait in seconds, string-encoded per Twilio's wire shape.</summary>
-    [JsonPropertyName("queue_time")] public string QueueTime { get; init; } = "";
+    [JsonPropertyName("queue_time")] public string? QueueTime { get; init; }
 
     /// <summary>Whether joining starts the conference.</summary>
-    [JsonPropertyName("start_conference_on_enter")] public bool StartConferenceOnEnter { get; init; }
+    [JsonPropertyName("start_conference_on_enter")] public bool? StartConferenceOnEnter { get; init; }
 
     /// <summary>Whether leaving ends the conference.</summary>
-    [JsonPropertyName("end_conference_on_exit")] public bool EndConferenceOnExit { get; init; }
+    [JsonPropertyName("end_conference_on_exit")] public bool? EndConferenceOnExit { get; init; }
 
     /// <summary>Participant status (<c>queued</c>, <c>connecting</c>, <c>ringing</c>, <c>connected</c>,
     /// <c>on-hold</c>, <c>complete</c>, <c>failed</c>, <c>completed</c>).</summary>
@@ -94,11 +94,11 @@ public sealed record Participant
     /// <summary>Friendly label.</summary>
     [JsonPropertyName("label")] public string? Label { get; init; }
 
-    /// <summary>Twilio API version label.</summary>
-    [JsonPropertyName("api_version")] public string ApiVersion { get; init; } = "";
+    /// <summary>Legacy field, no longer returned by the server; retained as nullable for older response payloads.</summary>
+    [JsonPropertyName("api_version")] public string? ApiVersion { get; init; }
 
     /// <summary>URI of this participant.</summary>
-    [JsonPropertyName("uri")] public string Uri { get; init; } = "";
+    [JsonPropertyName("uri")] public string? Uri { get; init; }
 
     /// <summary>RFC 3339 creation timestamp.</summary>
     [JsonPropertyName("date_created")] public string? DateCreated { get; init; }
