@@ -410,18 +410,18 @@ public sealed class RegressionTests : IDisposable
     [Fact]
     public void SignatureVectorsAndPortVariants()
     {
-        var pairs = new[] { Pair("CallSid", "CA0123456789abcdef0123456789abcdef"), Pair("From", "+14155550100"), Pair("To", "+14155550101"), Pair("Digits", "1234"), Pair("AccountSid", Account) };
+        var pairs = new[] { Pair("CallSid", "CA0123456789abcdef0123456789abcdef"), Pair("From", "+14155550100"), Pair("To", "+14155550101"), Pair("Digits", "1234"), Pair("AccountSid", "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX") };
         const string url = "https://example.com/voice/answer?case=1";
         const string withPort = "https://example.com:443/voice/answer?case=1";
-        Assert.Equal("pk/0TPPT+p98NEZykeWQLqRXyGU=", RequestValidator.GetSignature(Key, url, pairs));
-        Assert.Equal("/Bw0s+u5vlGd6zLAOTz/eMg33pk=", RequestValidator.GetSignature(Key, withPort, pairs));
-        Assert.True(RequestValidator.ValidateRequest(Key, withPort, pairs, "pk/0TPPT+p98NEZykeWQLqRXyGU="));
-        Assert.True(RequestValidator.ValidateRequest(Key, url, pairs, "/Bw0s+u5vlGd6zLAOTz/eMg33pk="));
+        Assert.Equal("RweoLyWqNC7H8+MLXPb7EPz18OI=", RequestValidator.GetSignature(Key, url, pairs));
+        Assert.Equal("xE0r2wPa6d1ktQeCFpPyINmTNYg=", RequestValidator.GetSignature(Key, withPort, pairs));
+        Assert.True(RequestValidator.ValidateRequest(Key, withPort, pairs, "RweoLyWqNC7H8+MLXPb7EPz18OI="));
+        Assert.True(RequestValidator.ValidateRequest(Key, url, pairs, "xE0r2wPa6d1ktQeCFpPyINmTNYg="));
         Assert.Equal("jCnpBgyg45aZYwUie5fmq4EYUic=", RequestValidator.GetSignature(Key, "https://example.com/hook", new[] { Pair("To", "+14155550101"), Pair("Event", "answered"), Pair("Event", "initiated") }));
         Assert.Equal("9I4odWBHhF7TMIkIrNtPEPjD9fU=", RequestValidator.GetSignature(Key, "https://example.com/voice/answer?CallSid=CA0123456789abcdef0123456789abcdef&From=%2B14155550100"));
         Assert.Equal(RequestValidator.GetSignature(Key, url, pairs), RequestValidator.GetSignature(Key, url + "#ignored", pairs));
-        Assert.False(RequestValidator.ValidateRequest("wrong-key", url, pairs, "pk/0TPPT+p98NEZykeWQLqRXyGU="));
-        Assert.False(RequestValidator.ValidateRequest(Key, url, pairs.Append(Pair("Tampered", "true")), "pk/0TPPT+p98NEZykeWQLqRXyGU="));
+        Assert.False(RequestValidator.ValidateRequest("wrong-key", url, pairs, "RweoLyWqNC7H8+MLXPb7EPz18OI="));
+        Assert.False(RequestValidator.ValidateRequest(Key, url, pairs.Append(Pair("Tampered", "true")), "RweoLyWqNC7H8+MLXPb7EPz18OI="));
         const string raw = "https://EXAMPLE.com/a%2fb?x=%2b";
         const string rawWithPort = "https://EXAMPLE.com:443/a%2fb?x=%2b";
         Assert.True(RequestValidator.ValidateRequest(Key, raw, pairs, RequestValidator.GetSignature(Key, rawWithPort, pairs)));

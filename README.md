@@ -17,7 +17,7 @@ Install the .NET 10 SDK to build both target frameworks, then:
 git clone https://github.com/voicetel/voiceml-csharp-sdk.git
 dotnet pack voiceml-csharp-sdk/src/VoiceML/VoiceML.csproj -c Release -o "$PWD/voiceml-local-feed"
 dotnet new console -n MyVoiceApp -f net10.0
-dotnet add MyVoiceApp/MyVoiceApp.csproj package VoiceML --version 0.9.2 --source "$PWD/voiceml-local-feed"
+dotnet add MyVoiceApp/MyVoiceApp.csproj package VoiceML --version 0.9.3 --source "$PWD/voiceml-local-feed"
 dotnet build MyVoiceApp/MyVoiceApp.csproj -c Release
 ```
 

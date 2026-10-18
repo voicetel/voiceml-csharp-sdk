@@ -2,7 +2,7 @@
 
 All notable changes are recorded here in Keep a Changelog format.
 
-## [Unreleased]
+## [0.9.3] - 2026-10-18
 
 ### Breaking changes
 
