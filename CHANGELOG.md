@@ -2,6 +2,16 @@
 
 All notable changes are recorded here in Keep a Changelog format.
 
+## [Unreleased]
+
+### Docs
+
+- `VoiceML` 0.9.3 is now on nuget.org (published 2026-10-19 by the `voicetel` organization through trusted publishing). README, `docs/installation.md` and SECURITY.md now give `dotnet add package VoiceML` as the install path and keep source builds for unreleased changes. The README version line now reads SDK 0.9.3 (API spec 0.9.2).
+
+### CI
+
+- The local-feed smoke test reads the package version from the project file instead of a hard-coded version.
+
 ## [0.9.3] - 2026-10-18
 
 ### Breaking changes

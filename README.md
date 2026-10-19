@@ -2,26 +2,20 @@
 
 Official asynchronous .NET client for VoiceML, VoiceTel's Twilio-compatible voice and messaging API.
 
-- SDK/spec version: **0.9.2**. Targets **.NET 8 and .NET 10**; .NET 10 is recommended for new applications. .NET 8 support ends on 2026-11-10.
+- SDK version **0.9.3** (API spec 0.9.2). Targets **.NET 8 and .NET 10**; .NET 10 is recommended for new applications. .NET 8 support ends on 2026-11-10.
 - The committed public-spec contract tests exercise **333 of 333 operations** through mocked HTTP, including host routing, authentication, request keys, required parameters and nullable responses.
 - Typed resources, nullable reference annotations, cancellation tokens and lazy asynchronous pagination. Future response enum values are retained as strings and unknown response fields are ignored.
 - [API documentation](https://voicetel.com/docs/api/v0.9/voiceml/) · [Source](https://github.com/voicetel/voiceml-csharp-sdk) · [Changes](CHANGELOG.md)
 
-## Installation: local feed until the first NuGet publication
-
-**The `VoiceML` package has not yet been published to nuget.org.** The intended package ID is `VoiceML`; use a package built from this repository until the first official publication. A registry-only `dotnet add package VoiceML` command is not currently a working installation path.
-
-Install the .NET 10 SDK to build both target frameworks, then:
+## Installation
 
 ```sh
-git clone https://github.com/voicetel/voiceml-csharp-sdk.git
-dotnet pack voiceml-csharp-sdk/src/VoiceML/VoiceML.csproj -c Release -o "$PWD/voiceml-local-feed"
-dotnet new console -n MyVoiceApp -f net10.0
-dotnet add MyVoiceApp/MyVoiceApp.csproj package VoiceML --version 0.9.3 --source "$PWD/voiceml-local-feed"
-dotnet build MyVoiceApp/MyVoiceApp.csproj -c Release
+dotnet add package VoiceML
 ```
 
-Alternatively, add a source project reference. See [installation details](docs/installation.md). Packages include the repository's **MIT with Commons Clause** license text, XML API documentation, deterministic assemblies and SourceLink information. There are no runtime NuGet dependencies.
+[`VoiceML`](https://www.nuget.org/packages/VoiceML) is published on nuget.org by the `voicetel` organization, from this repository's publish workflow using trusted publishing. Packages target `net8.0` and `net10.0` and include the repository's **MIT with Commons Clause** license text, XML API documentation, deterministic assemblies, SourceLink information and a symbol package. There are no runtime NuGet dependencies.
+
+To build from source instead, for example to try unreleased changes, see [installation details](docs/installation.md).
 
 ## Quick start
 

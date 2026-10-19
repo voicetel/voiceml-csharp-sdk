@@ -23,4 +23,4 @@ Please use [GitHub private vulnerability reporting](https://github.com/voicetel/
 
 ## Package availability
 
-`VoiceML` has not yet been published to nuget.org. Build from this repository using the [local-feed or ProjectReference instructions](docs/installation.md). The first registry publication and trusted-publishing account configuration require repository-owner action.
+The official package is [`VoiceML` on nuget.org](https://www.nuget.org/packages/VoiceML), owned by the `voicetel` organization. Releases are pushed only by this repository's `publish.yml` workflow through nuget.org trusted publishing; no long-lived NuGet API key is stored. Each package's `.nuspec` records the source commit, which you can compare with the release tag. Treat packages with similar names from other owners as unofficial.
