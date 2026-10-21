@@ -2,7 +2,11 @@
 
 All notable changes are recorded here in Keep a Changelog format.
 
-## [Unreleased]
+## [0.9.4] - 2026-10-21
+
+### Added
+
+- IncomingPhoneNumbers create and update accept `VoiceApplicationSid`, `StatusCallback` and `StatusCallbackMethod`; OutgoingCallerIds create accepts `CallDelay`, `Extension`, `StatusCallback` and `StatusCallbackMethod`.
 
 ### Docs
 

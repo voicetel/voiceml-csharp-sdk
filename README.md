@@ -2,7 +2,7 @@
 
 Official asynchronous .NET client for VoiceML, VoiceTel's Twilio-compatible voice and messaging API.
 
-- SDK version **0.9.3** (API spec 0.9.2). Targets **.NET 8 and .NET 10**; .NET 10 is recommended for new applications. .NET 8 support ends on 2026-11-10.
+- SDK version **0.9.4** (API spec 0.9.3). Targets **.NET 8 and .NET 10**; .NET 10 is recommended for new applications. .NET 8 support ends on 2026-11-10.
 - The committed public-spec contract tests exercise **333 of 333 operations** through mocked HTTP, including host routing, authentication, request keys, required parameters and nullable responses.
 - Typed resources, nullable reference annotations, cancellation tokens and lazy asynchronous pagination. Future response enum values are retained as strings and unknown response fields are ignored.
 - [API documentation](https://voicetel.com/docs/api/v0.9/voiceml/) · [Source](https://github.com/voicetel/voiceml-csharp-sdk) · [Changes](CHANGELOG.md)
