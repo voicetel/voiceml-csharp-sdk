@@ -375,6 +375,7 @@ public class SmokeTests
     // -----------------------------------------------------------------------
 
     private const string PhoneSid = "PN" + "0123456789abcdef0123456789abcdef";
+    private const string AppSid = "AP" + "0123456789abcdef0123456789abcdef";
 
     [Fact]
     public async Task IncomingPhoneNumbers_List_PathAndShape()
@@ -417,6 +418,9 @@ public class SmokeTests
             Assert.Equal("+14155550101", form["PhoneNumber"]);
             Assert.Equal("https://example.com/voice", form["VoiceUrl"]);
             Assert.Equal("POST", form["VoiceMethod"]);
+            Assert.Equal(AppSid, form["VoiceApplicationSid"]);
+            Assert.Equal("https://example.com/number-status", form["StatusCallback"]);
+            Assert.Equal("POST", form["StatusCallbackMethod"]);
             var json = "{\"sid\":\"" + PhoneSid + "\",\"account_sid\":\"" + Sid + "\",\"phone_number\":\"+14155550101\",\"api_version\":\"2010-04-01\",\"uri\":\"/x\",\"capabilities\":{\"voice\":true,\"sms\":false,\"mms\":false,\"fax\":false}}";
             return Reply(HttpStatusCode.Created, json);
         });
@@ -426,6 +430,9 @@ public class SmokeTests
             PhoneNumber = "+14155550101",
             VoiceUrl = "https://example.com/voice",
             VoiceMethod = "POST",
+            VoiceApplicationSid = AppSid,
+            StatusCallback = "https://example.com/number-status",
+            StatusCallbackMethod = "POST",
         });
         Assert.Equal(PhoneSid, pn.Sid);
         Assert.StartsWith("PN", pn.Sid);
@@ -455,6 +462,9 @@ public class SmokeTests
             Assert.EndsWith($"/IncomingPhoneNumbers/{PhoneSid}.json", req.RequestUri!.AbsolutePath);
             var form = ParseForm(req.Content!.ReadAsStringAsync().Result);
             Assert.Equal("https://example.com/new-voice", form["VoiceUrl"]);
+            Assert.Equal(AppSid, form["VoiceApplicationSid"]);
+            Assert.Equal("https://example.com/number-status", form["StatusCallback"]);
+            Assert.Equal("GET", form["StatusCallbackMethod"]);
             var json = "{\"sid\":\"" + PhoneSid + "\",\"account_sid\":\"" + Sid + "\",\"phone_number\":\"+14155550100\",\"api_version\":\"2010-04-01\",\"uri\":\"/x\",\"voice_url\":\"https://example.com/new-voice\",\"capabilities\":{\"voice\":true,\"sms\":false,\"mms\":false,\"fax\":false}}";
             return Reply(HttpStatusCode.OK, json);
         });
@@ -462,6 +472,9 @@ public class SmokeTests
         var pn = await client.IncomingPhoneNumbers.UpdateAsync(PhoneSid, new UpdateIncomingPhoneNumberOptions
         {
             VoiceUrl = "https://example.com/new-voice",
+            VoiceApplicationSid = AppSid,
+            StatusCallback = "https://example.com/number-status",
+            StatusCallbackMethod = "GET",
         });
         Assert.Equal("https://example.com/new-voice", pn.VoiceUrl);
     }
@@ -477,6 +490,43 @@ public class SmokeTests
         });
         using var client = NewClient(handler);
         await client.IncomingPhoneNumbers.DeleteAsync(PhoneSid); // does not throw
+    }
+
+    // -----------------------------------------------------------------------
+    // OutgoingCallerIds — caller-ID verification create
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public async Task OutgoingCallerIds_Create_FormBody_AndPath()
+    {
+        var handler = new MockHandler(req =>
+        {
+            Assert.Equal(HttpMethod.Post, req.Method);
+            Assert.EndsWith($"/Accounts/{Sid}/OutgoingCallerIds.json", req.RequestUri!.AbsolutePath);
+            var body = req.Content!.ReadAsStringAsync().Result;
+            var form = ParseForm(body);
+            Assert.Equal("+14155550100", form["PhoneNumber"]);
+            Assert.Equal("Desk", form["FriendlyName"]);
+            Assert.Equal("5", form["CallDelay"]);
+            Assert.Equal("123", form["Extension"]);
+            Assert.Equal("https://example.com/validation-status", form["StatusCallback"]);
+            Assert.Equal("POST", form["StatusCallbackMethod"]);
+            var json = "{\"sid\":null,\"account_sid\":\"" + Sid + "\",\"phone_number\":\"+14155550100\",\"friendly_name\":\"Desk\",\"validation_code\":\"123456\",\"call_sid\":\"" + CallSid + "\"}";
+            return Reply(HttpStatusCode.OK, json);
+        });
+        using var client = NewClient(handler);
+        var vr = await client.OutgoingCallerIds.CreateAsync(new CreateOutgoingCallerIdRequest
+        {
+            PhoneNumber = "+14155550100",
+            FriendlyName = "Desk",
+            CallDelay = 5,
+            Extension = "123",
+            StatusCallback = "https://example.com/validation-status",
+            StatusCallbackMethod = "POST",
+        });
+        Assert.Equal("123456", vr.ValidationCode);
+        Assert.Equal(CallSid, vr.CallSid);
+        Assert.Equal("+14155550100", vr.PhoneNumber);
     }
 
     // -----------------------------------------------------------------------

@@ -108,7 +108,7 @@ Recording audio and archive downloads authenticate their first API request, manu
 
 `CreateMessageRequest` accepts optional `Body` and repeated `MediaUrl` values: provide text, at least one media URL, or both. It also exposes `ValidityPeriod`, `StatusCallback` and `StatusCallbackMethod`.
 
-Incoming phone-number create/update requests expose `SmsUrl`, `SmsMethod`, `SmsFallbackUrl`, `SmsFallbackMethod` and `SmsApplicationSid`. The Local/Mobile/TollFree creates use `CreateTypedIncomingPhoneNumberOptions`, which contains only the phone number and primary voice URL/method declared for those routes. Application create/update requests expose `MessageStatusCallback` and its legacy alias `SmsStatusCallback`.
+Incoming phone-number create/update requests expose `SmsUrl`, `SmsMethod`, `SmsFallbackUrl`, `SmsFallbackMethod`, `SmsApplicationSid`, `VoiceApplicationSid`, `StatusCallback` and `StatusCallbackMethod`. The Local/Mobile/TollFree creates use `CreateTypedIncomingPhoneNumberOptions`, which contains only the phone number and primary voice URL/method declared for those routes. Application create/update requests expose `MessageStatusCallback` and its legacy alias `SmsStatusCallback`.
 
 Calls support `StartTime`, `StartTimeLt`, `StartTimeGt` and the corresponding EndTime filters. Use UTC ISO-8601 timestamps, or `YYYY-MM-DD` for date-only filters. The API does not declare inclusive `StartTimeGte`/`StartTimeLte` request properties. Booleans use lowercase `true`/`false`; lists use repeated form keys; JSON-valued form fields such as `Attributes` take compact JSON strings.
 

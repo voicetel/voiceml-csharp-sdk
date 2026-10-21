@@ -257,6 +257,16 @@ public sealed record CreateIncomingPhoneNumberOptions : IFormSerializable
     /// for this number.</summary>
     public string? SmsApplicationSid { get; init; }
 
+    /// <summary>Linked <c>AP…</c> Application SID whose voice configuration wins outright
+    /// over this number's own <c>Voice…</c> fields.</summary>
+    public string? VoiceApplicationSid { get; init; }
+
+    /// <summary>Number-level lifecycle webhook for inbound calls to this number.</summary>
+    public string? StatusCallback { get; init; }
+
+    /// <summary>HTTP method for <see cref="StatusCallback"/> (<c>GET</c> or <c>POST</c>).</summary>
+    public string? StatusCallbackMethod { get; init; }
+
     /// <inheritdoc/>
     public IEnumerable<KeyValuePair<string, string?>> ToForm()
     {
@@ -270,6 +280,9 @@ public sealed record CreateIncomingPhoneNumberOptions : IFormSerializable
         yield return new("SmsFallbackUrl", SmsFallbackUrl);
         yield return new("SmsFallbackMethod", SmsFallbackMethod);
         yield return new("SmsApplicationSid", SmsApplicationSid);
+        yield return new("VoiceApplicationSid", VoiceApplicationSid);
+        yield return new("StatusCallback", StatusCallback);
+        yield return new("StatusCallbackMethod", StatusCallbackMethod);
     }
 }
 
@@ -304,6 +317,16 @@ public sealed record UpdateIncomingPhoneNumberOptions : IFormSerializable
     /// for this number.</summary>
     public string? SmsApplicationSid { get; init; }
 
+    /// <summary>Linked <c>AP…</c> Application SID whose voice configuration wins outright
+    /// over this number's own <c>Voice…</c> fields.</summary>
+    public string? VoiceApplicationSid { get; init; }
+
+    /// <summary>Number-level lifecycle webhook for inbound calls to this number.</summary>
+    public string? StatusCallback { get; init; }
+
+    /// <summary>HTTP method for <see cref="StatusCallback"/> (<c>GET</c> or <c>POST</c>).</summary>
+    public string? StatusCallbackMethod { get; init; }
+
     /// <inheritdoc/>
     public IEnumerable<KeyValuePair<string, string?>> ToForm()
     {
@@ -316,6 +339,9 @@ public sealed record UpdateIncomingPhoneNumberOptions : IFormSerializable
         yield return new("SmsFallbackUrl", SmsFallbackUrl);
         yield return new("SmsFallbackMethod", SmsFallbackMethod);
         yield return new("SmsApplicationSid", SmsApplicationSid);
+        yield return new("VoiceApplicationSid", VoiceApplicationSid);
+        yield return new("StatusCallback", StatusCallback);
+        yield return new("StatusCallbackMethod", StatusCallbackMethod);
     }
 }
 

@@ -100,11 +100,28 @@ public sealed record CreateOutgoingCallerIdRequest : IFormSerializable
     /// <summary>Friendly name to store for the verified number.</summary>
     public string? FriendlyName { get; init; }
 
+    /// <summary>Seconds to wait before placing the verification call (0-60).</summary>
+    public int? CallDelay { get; init; }
+
+    /// <summary>DTMF extension dialed after the verification call connects.</summary>
+    public string? Extension { get; init; }
+
+    /// <summary>Webhook fired at the end of the verification call with the verification
+    /// outcome.</summary>
+    public string? StatusCallback { get; init; }
+
+    /// <summary>HTTP method for <see cref="StatusCallback"/> (<c>GET</c> or <c>POST</c>).</summary>
+    public string? StatusCallbackMethod { get; init; }
+
     /// <inheritdoc/>
     public IEnumerable<KeyValuePair<string, string?>> ToForm()
     {
         yield return new("PhoneNumber", PhoneNumber);
         yield return new("FriendlyName", FriendlyName);
+        yield return new("CallDelay", CallDelay?.ToString());
+        yield return new("Extension", Extension);
+        yield return new("StatusCallback", StatusCallback);
+        yield return new("StatusCallbackMethod", StatusCallbackMethod);
     }
 }
 
