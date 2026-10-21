@@ -248,16 +248,22 @@ public sealed record RecordingAudio
     public bool ViaRedirect { get; init; }
 }
 
-/// <summary>Change the state of a conference recording. Unlike call recordings, the conference endpoint declares no PauseBehavior parameter.</summary>
+/// <summary>Change the state of a conference recording. Takes the same Status/PauseBehavior
+/// pair as call-recording updates.</summary>
 public sealed record UpdateConferenceRecordingRequest : IFormSerializable
 {
     /// <summary>Requested recording state: stopped, paused or in-progress.</summary>
     public required string Status { get; init; }
 
+    /// <summary>With <c>Status=paused</c>: <c>skip</c> leaves the paused span out of the
+    /// recording; <c>silence</c> (the server default) replaces it with silence.</summary>
+    public string? PauseBehavior { get; init; }
+
     /// <inheritdoc/>
     public IEnumerable<KeyValuePair<string, string?>> ToForm()
     {
         yield return new("Status", Status);
+        yield return new("PauseBehavior", PauseBehavior);
     }
 }
 

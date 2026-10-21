@@ -143,6 +143,21 @@ public sealed record CreateApplicationRequest : IFormSerializable
     /// <summary>Legacy alias of <see cref="MessageStatusCallback"/>.</summary>
     public string? SmsStatusCallback { get; init; }
 
+    /// <summary>Inbound-SMS webhook URL for this Application.</summary>
+    public string? SmsUrl { get; init; }
+
+    /// <summary>HTTP method for <see cref="SmsUrl"/> (<c>GET</c> or <c>POST</c>).</summary>
+    public string? SmsMethod { get; init; }
+
+    /// <summary>Called when requesting/executing the TwiML at <see cref="SmsUrl"/> fails.</summary>
+    public string? SmsFallbackUrl { get; init; }
+
+    /// <summary>HTTP method for <see cref="SmsFallbackUrl"/> (<c>GET</c> or <c>POST</c>).</summary>
+    public string? SmsFallbackMethod { get; init; }
+
+    /// <summary>Whether this Application is enabled for public Application Connect.</summary>
+    public bool? PublicApplicationConnectEnabled { get; init; }
+
     /// <inheritdoc/>
     public IEnumerable<KeyValuePair<string, string?>> ToForm()
     {
@@ -157,6 +172,11 @@ public sealed record CreateApplicationRequest : IFormSerializable
         yield return new("StatusCallbackEvent", StatusCallbackEvent);
         yield return new("MessageStatusCallback", MessageStatusCallback);
         yield return new("SmsStatusCallback", SmsStatusCallback);
+        yield return new("SmsUrl", SmsUrl);
+        yield return new("SmsMethod", SmsMethod);
+        yield return new("SmsFallbackUrl", SmsFallbackUrl);
+        yield return new("SmsFallbackMethod", SmsFallbackMethod);
+        yield return new("PublicApplicationConnectEnabled", FormHelpers.BoolStr(PublicApplicationConnectEnabled));
     }
 }
 
@@ -196,6 +216,21 @@ public sealed record UpdateApplicationRequest : IFormSerializable
     /// <summary>Legacy alias of <see cref="MessageStatusCallback"/>.</summary>
     public string? SmsStatusCallback { get; init; }
 
+    /// <summary>Inbound-SMS webhook URL for this Application.</summary>
+    public string? SmsUrl { get; init; }
+
+    /// <summary>HTTP method for <see cref="SmsUrl"/> (<c>GET</c> or <c>POST</c>).</summary>
+    public string? SmsMethod { get; init; }
+
+    /// <summary>Called when requesting/executing the TwiML at <see cref="SmsUrl"/> fails.</summary>
+    public string? SmsFallbackUrl { get; init; }
+
+    /// <summary>HTTP method for <see cref="SmsFallbackUrl"/> (<c>GET</c> or <c>POST</c>).</summary>
+    public string? SmsFallbackMethod { get; init; }
+
+    /// <summary>Whether this Application is enabled for public Application Connect.</summary>
+    public bool? PublicApplicationConnectEnabled { get; init; }
+
     /// <inheritdoc/>
     public IEnumerable<KeyValuePair<string, string?>> ToForm()
     {
@@ -210,5 +245,10 @@ public sealed record UpdateApplicationRequest : IFormSerializable
         yield return new("StatusCallbackEvent", StatusCallbackEvent);
         yield return new("MessageStatusCallback", MessageStatusCallback);
         yield return new("SmsStatusCallback", SmsStatusCallback);
+        yield return new("SmsUrl", SmsUrl);
+        yield return new("SmsMethod", SmsMethod);
+        yield return new("SmsFallbackUrl", SmsFallbackUrl);
+        yield return new("SmsFallbackMethod", SmsFallbackMethod);
+        yield return new("PublicApplicationConnectEnabled", FormHelpers.BoolStr(PublicApplicationConnectEnabled));
     }
 }

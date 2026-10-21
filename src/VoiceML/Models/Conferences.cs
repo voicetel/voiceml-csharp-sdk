@@ -265,6 +265,16 @@ public sealed record CreateParticipantRequest : IFormSerializable
     /// <summary>Status callback events.</summary>
     public string? StatusCallbackEvent { get; init; }
 
+    /// <summary>Participant's conference lifecycle webhook.</summary>
+    public string? ConferenceStatusCallback { get; init; }
+
+    /// <summary>HTTP method for the conference status callback (<c>GET</c> or <c>POST</c>;
+    /// default <c>POST</c>).</summary>
+    public string? ConferenceStatusCallbackMethod { get; init; }
+
+    /// <summary>Space- or comma-separated conference event filter (default <c>start end</c>).</summary>
+    public string? ConferenceStatusCallbackEvent { get; init; }
+
     /// <inheritdoc/>
     public IEnumerable<KeyValuePair<string, string?>> ToForm()
     {
@@ -278,5 +288,8 @@ public sealed record CreateParticipantRequest : IFormSerializable
         yield return new("StatusCallback", StatusCallback);
         yield return new("StatusCallbackMethod", StatusCallbackMethod);
         yield return new("StatusCallbackEvent", StatusCallbackEvent);
+        yield return new("ConferenceStatusCallback", ConferenceStatusCallback);
+        yield return new("ConferenceStatusCallbackMethod", ConferenceStatusCallbackMethod);
+        yield return new("ConferenceStatusCallbackEvent", ConferenceStatusCallbackEvent);
     }
 }

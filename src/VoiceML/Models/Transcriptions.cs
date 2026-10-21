@@ -64,8 +64,20 @@ public sealed record StartTranscriptionRequest : IFormSerializable
     /// <summary>Engine hints (free-form comma-separated phrases).</summary>
     public string? Hints { get; init; }
 
-    /// <summary>Status-callback URL.</summary>
-    public string? StatusCallback { get; init; }
+    /// <summary>Engine-specific model hint (e.g. Deepgram's <c>nova-3</c>).</summary>
+    public string? SpeechModel { get; init; }
+
+    /// <summary>Whether the engine should punctuate transcripts automatically.</summary>
+    public bool? EnableAutomaticPunctuation { get; init; }
+
+    /// <summary>Accepted for Twilio compatibility; VoiceML has no Conversation Intelligence,
+    /// so a set value logs a 32655 Notification and transcription proceeds.</summary>
+    public string? IntelligenceService { get; init; }
+
+    /// <summary>Transcription lifecycle webhook (Twilio's REST name; no <c>StatusCallback</c>
+    /// alias). Renamed from the pre-0.9.5 <c>StatusCallback</c> property, whose wire name the
+    /// server never read.</summary>
+    public string? StatusCallbackUrl { get; init; }
 
     /// <summary>HTTP method for the status callback.</summary>
     public string? StatusCallbackMethod { get; init; }
@@ -83,7 +95,10 @@ public sealed record StartTranscriptionRequest : IFormSerializable
         yield return new("ProfanityFilter", FormHelpers.BoolStr(ProfanityFilter));
         yield return new("PartialResults", FormHelpers.BoolStr(PartialResults));
         yield return new("Hints", Hints);
-        yield return new("StatusCallback", StatusCallback);
+        yield return new("SpeechModel", SpeechModel);
+        yield return new("EnableAutomaticPunctuation", FormHelpers.BoolStr(EnableAutomaticPunctuation));
+        yield return new("IntelligenceService", IntelligenceService);
+        yield return new("StatusCallbackUrl", StatusCallbackUrl);
         yield return new("StatusCallbackMethod", StatusCallbackMethod);
         yield return new("StatusCallbackEvents", StatusCallbackEvents);
     }

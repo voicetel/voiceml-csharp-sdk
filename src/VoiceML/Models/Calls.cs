@@ -182,6 +182,11 @@ public sealed record CreateCallRequest : IFormSerializable
     /// <summary>Ring timeout in seconds.</summary>
     public int? Timeout { get; init; }
 
+    /// <summary>Max call duration in seconds. An explicit <c>0</c> or a value above
+    /// <c>14400</c> is rejected (error 13216); a negative value disables the limit.
+    /// When omitted, the 4-hour default cap applies.</summary>
+    public int? TimeLimit { get; init; }
+
     /// <summary>DTMF digits to send after the call is answered.</summary>
     public string? SendDigits { get; init; }
 
@@ -241,6 +246,7 @@ public sealed record CreateCallRequest : IFormSerializable
         yield return new("RecordingTrack", RecordingTrack);
         yield return new("Trim", Trim);
         yield return new("Timeout", Timeout?.ToString());
+        yield return new("TimeLimit", TimeLimit?.ToString());
         yield return new("SendDigits", SendDigits);
         yield return new("CallerId", CallerId);
         yield return new("CallReason", CallReason);

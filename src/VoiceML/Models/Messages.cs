@@ -119,6 +119,16 @@ public sealed record CreateMessageRequest : IFormSerializable
     /// DLR request.</summary>
     public string? StatusCallbackMethod { get; init; }
 
+    /// <summary>Schedule the message for a future UTC time (RFC 3339, e.g.
+    /// <c>2026-10-21T15:04:05Z</c>). Requires <see cref="ScheduleType"/> and
+    /// <see cref="MessagingServiceSid"/>.</summary>
+    public string? SendAt { get; init; }
+
+    /// <summary><c>fixed</c> is the only supported value; anything else is a 400
+    /// (error 35126). Requires <see cref="SendAt"/> and
+    /// <see cref="MessagingServiceSid"/>.</summary>
+    public string? ScheduleType { get; init; }
+
     /// <summary>Validate that Body or MediaUrl is present. Called during form serialization.</summary>
     public void Validate()
     {
@@ -147,6 +157,8 @@ public sealed record CreateMessageRequest : IFormSerializable
         yield return new("ValidityPeriod", ValidityPeriod?.ToString());
         yield return new("StatusCallback", StatusCallback);
         yield return new("StatusCallbackMethod", StatusCallbackMethod);
+        yield return new("SendAt", SendAt);
+        yield return new("ScheduleType", ScheduleType);
     }
 }
 

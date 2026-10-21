@@ -83,6 +83,7 @@ public class SmokeTests
             Assert.Equal("+14155550100", form["From"]);
             Assert.Equal("https://example.com/twiml", form["Url"]);
             Assert.Equal("true", form["Record"]);
+            Assert.Equal("3600", form["TimeLimit"]);
 
             return Reply(HttpStatusCode.Created, """{"sid":"CAabc","account_sid":"AC0","status":"queued","direction":"outbound-api","api_version":"2010-04-01","uri":"/2010-04-01/Accounts/AC0/Calls/CAabc","date_created":"2025-01-01","date_updated":"2025-01-01"}""");
         });
@@ -94,6 +95,7 @@ public class SmokeTests
             From = "+14155550100",
             Url = "https://example.com/twiml",
             Record = true,
+            TimeLimit = 3600,
         });
         Assert.Equal("CAabc", call.Sid);
     }
@@ -713,6 +715,10 @@ public class SmokeTests
             var body = req.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
             Assert.Contains("From=%2B14155550101", body);
             Assert.Contains("To=%2B14155550100", body);
+            var form = ParseForm(body);
+            Assert.Equal("https://example.com/conf-status", form["ConferenceStatusCallback"]);
+            Assert.Equal("POST", form["ConferenceStatusCallbackMethod"]);
+            Assert.Equal("start,end", form["ConferenceStatusCallbackEvent"]);
             return Reply(HttpStatusCode.Created, $$"""
                 {"call_sid":"CA{{new string('f', 32)}}","conference_sid":"{{confSid}}",
                  "account_sid":"{{Sid}}","status":"queued","api_version":"2010-04-01","uri":"/x"}
@@ -723,7 +729,165 @@ public class SmokeTests
         {
             From = "+14155550101",
             To = "+14155550100",
+            ConferenceStatusCallback = "https://example.com/conf-status",
+            ConferenceStatusCallbackMethod = "POST",
+            ConferenceStatusCallbackEvent = "start,end",
         });
+    }
+
+    // -----------------------------------------------------------------------
+    // Spec v0.9.4: conference-recording PauseBehavior, Application SMS webhooks
+    // + PublicApplicationConnectEnabled, message SendAt/ScheduleType,
+    // transcription SpeechModel/EnableAutomaticPunctuation/IntelligenceService
+    // and the StatusCallback → StatusCallbackUrl rename (calls TimeLimit and
+    // participant ConferenceStatusCallback* are asserted in the tests above).
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public async Task ConferencesUpdateRecording_SendsPauseBehavior()
+    {
+        var confSid = "CF" + new string('f', 32);
+        var handler = new MockHandler(req =>
+        {
+            Assert.Equal(HttpMethod.Post, req.Method);
+            Assert.EndsWith($"/Conferences/{confSid}/Recordings/{RecSid}.json", req.RequestUri!.AbsolutePath);
+            var form = ParseForm(req.Content!.ReadAsStringAsync().Result);
+            Assert.Equal("paused", form["Status"]);
+            Assert.Equal("skip", form["PauseBehavior"]);
+            return Reply(HttpStatusCode.OK, $$"""
+                {"sid":"{{RecSid}}","account_sid":"{{Sid}}","conference_sid":"{{confSid}}","status":"paused","uri":"/x"}
+                """);
+        });
+        using var client = NewClient(handler);
+        var rec = await client.Conferences.UpdateRecordingAsync(confSid, RecSid,
+            new UpdateConferenceRecordingRequest { Status = "paused", PauseBehavior = "skip" });
+        Assert.Equal("paused", rec.Status);
+    }
+
+    [Fact]
+    public async Task ApplicationsCreate_SmsAndConnectFields_OnTheWire()
+    {
+        var handler = new MockHandler(req =>
+        {
+            Assert.Equal(HttpMethod.Post, req.Method);
+            Assert.EndsWith($"/Accounts/{Sid}/Applications.json", req.RequestUri!.AbsolutePath);
+            var form = ParseForm(req.Content!.ReadAsStringAsync().Result);
+            Assert.Equal("https://example.com/sms", form["SmsUrl"]);
+            Assert.Equal("POST", form["SmsMethod"]);
+            Assert.Equal("https://example.com/sms-fallback", form["SmsFallbackUrl"]);
+            Assert.Equal("GET", form["SmsFallbackMethod"]);
+            Assert.Equal("true", form["PublicApplicationConnectEnabled"]);
+            return Reply(HttpStatusCode.Created, $$"""
+                {"sid":"{{AppSid}}","account_sid":"{{Sid}}","friendly_name":"app","api_version":"2010-04-01","uri":"/x"}
+                """);
+        });
+        using var client = NewClient(handler);
+        var app = await client.Applications.CreateAsync(new CreateApplicationRequest
+        {
+            FriendlyName = "app",
+            SmsUrl = "https://example.com/sms",
+            SmsMethod = "POST",
+            SmsFallbackUrl = "https://example.com/sms-fallback",
+            SmsFallbackMethod = "GET",
+            PublicApplicationConnectEnabled = true,
+        });
+        Assert.Equal(AppSid, app.Sid);
+    }
+
+    [Fact]
+    public async Task ApplicationsUpdate_SmsAndConnectFields_OnTheWire()
+    {
+        var handler = new MockHandler(req =>
+        {
+            Assert.Equal(HttpMethod.Post, req.Method);
+            Assert.EndsWith($"/Applications/{AppSid}.json", req.RequestUri!.AbsolutePath);
+            var form = ParseForm(req.Content!.ReadAsStringAsync().Result);
+            Assert.Equal("https://example.com/sms2", form["SmsUrl"]);
+            Assert.Equal("GET", form["SmsMethod"]);
+            Assert.Equal("https://example.com/sms-fallback2", form["SmsFallbackUrl"]);
+            Assert.Equal("POST", form["SmsFallbackMethod"]);
+            Assert.Equal("false", form["PublicApplicationConnectEnabled"]);
+            return Reply(HttpStatusCode.OK, $$"""
+                {"sid":"{{AppSid}}","account_sid":"{{Sid}}","friendly_name":"app","api_version":"2010-04-01","uri":"/x"}
+                """);
+        });
+        using var client = NewClient(handler);
+        var app = await client.Applications.UpdateAsync(AppSid, new UpdateApplicationRequest
+        {
+            SmsUrl = "https://example.com/sms2",
+            SmsMethod = "GET",
+            SmsFallbackUrl = "https://example.com/sms-fallback2",
+            SmsFallbackMethod = "POST",
+            PublicApplicationConnectEnabled = false,
+        });
+        Assert.Equal(AppSid, app.Sid);
+    }
+
+    [Fact]
+    public async Task MessagesCreate_SchedulingFields_OnTheWire()
+    {
+        var msgSid = "SM" + new string('e', 32);
+        var handler = new MockHandler(req =>
+        {
+            Assert.Equal(HttpMethod.Post, req.Method);
+            Assert.EndsWith($"/Accounts/{Sid}/Messages.json", req.RequestUri!.AbsolutePath);
+            var form = ParseForm(req.Content!.ReadAsStringAsync().Result);
+            Assert.Equal("+14155550101", form["To"]);
+            Assert.Equal("scheduled-hello", form["Body"]);
+            Assert.Equal("2026-12-01T10:00:00Z", form["SendAt"]);
+            Assert.Equal("fixed", form["ScheduleType"]);
+            return Reply(HttpStatusCode.Created, $$"""
+                {"sid":"{{msgSid}}","account_sid":"{{Sid}}","api_version":"2010-04-01",
+                 "to":"+14155550101","from":"+14155550100","body":"scheduled-hello",
+                 "status":"scheduled","num_segments":"1","num_media":"0","direction":"outbound-api",
+                 "date_created":"Mon, 01 Jun 2026 12:00:00 +0000",
+                 "date_updated":"Mon, 01 Jun 2026 12:00:00 +0000",
+                 "uri":"/x"}
+                """);
+        });
+        using var client = NewClient(handler);
+        var msg = await client.Messages.CreateAsync(new CreateMessageRequest
+        {
+            To = "+14155550101",
+            Body = "scheduled-hello",
+            SendAt = "2026-12-01T10:00:00Z",
+            ScheduleType = "fixed",
+        });
+        Assert.Equal(msgSid, msg.Sid);
+        Assert.Equal("scheduled", msg.Status);
+    }
+
+    [Fact]
+    public async Task TranscriptionStart_SendsNewFields_AndRenamedCallbackUrl()
+    {
+        var handler = new MockHandler(req =>
+        {
+            Assert.Equal(HttpMethod.Post, req.Method);
+            Assert.EndsWith($"/Calls/{CallSid}/Transcriptions.json", req.RequestUri!.AbsolutePath);
+            var form = ParseForm(req.Content!.ReadAsStringAsync().Result);
+            Assert.Equal("nova-3", form["SpeechModel"]);
+            Assert.Equal("true", form["EnableAutomaticPunctuation"]);
+            Assert.Equal("example-service", form["IntelligenceService"]);
+            Assert.Equal("https://example.com/transcription-status", form["StatusCallbackUrl"]);
+            Assert.Equal("POST", form["StatusCallbackMethod"]);
+            Assert.Equal("completed", form["StatusCallbackEvents"]);
+            // The pre-0.9.5 wire name is gone — the server never read it.
+            Assert.DoesNotContain("StatusCallback", form.Keys);
+            return Reply(HttpStatusCode.Created, $$"""
+                {"sid":"TT{{new string('e', 32)}}","account_sid":"{{Sid}}","call_sid":"{{CallSid}}","status":"in-progress","uri":"/x"}
+                """);
+        });
+        using var client = NewClient(handler);
+        var t = await client.Calls.StartTranscriptionAsync(CallSid, new StartTranscriptionRequest
+        {
+            SpeechModel = "nova-3",
+            EnableAutomaticPunctuation = true,
+            IntelligenceService = "example-service",
+            StatusCallbackUrl = "https://example.com/transcription-status",
+            StatusCallbackMethod = "POST",
+            StatusCallbackEvents = "completed",
+        });
+        Assert.Equal("in-progress", t.Status);
     }
 
     [Fact]
