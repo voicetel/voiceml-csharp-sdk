@@ -2,6 +2,21 @@
 
 All notable changes are recorded here in Keep a Changelog format.
 
+## [0.9.5] - 2026-10-21
+
+### Added
+
+- Calls create accepts `TimeLimit` — max call duration in seconds. An explicit `0` or a value above `14400` is rejected (error 13216); a negative value disables the limit.
+- Conference participant create accepts `ConferenceStatusCallback`, `ConferenceStatusCallbackMethod` and `ConferenceStatusCallbackEvent` for the participant's conference lifecycle webhook.
+- Conference-recording updates accept `PauseBehavior` (`skip`/`silence`), mirroring call-recording updates.
+- Application create and update accept `SmsUrl`, `SmsMethod`, `SmsFallbackUrl`, `SmsFallbackMethod` and `PublicApplicationConnectEnabled`.
+- Message create accepts `SendAt` (RFC 3339 UTC) and `ScheduleType` (only `fixed` is accepted; both require a `MessagingServiceSid`) for scheduled sends.
+- Call-transcription start accepts `SpeechModel` (engine-specific model hint), `EnableAutomaticPunctuation` and `IntelligenceService` (accepted for compatibility; VoiceML has no Conversation Intelligence, so a set value logs a 32655 Notification and transcription proceeds).
+
+### Changed
+
+- `StartTranscriptionRequest.StatusCallback` is renamed to `StatusCallbackUrl`, matching the wire name the server reads (the old wire name was never honored). `StatusCallbackMethod` and `StatusCallbackEvents` are unchanged.
+
 ## [0.9.4] - 2026-10-21
 
 ### Added
